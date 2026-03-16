@@ -53,7 +53,28 @@ FEISHU_APP_ID=your_feishu_app_id
 FEISHU_APP_SECRET=your_feishu_app_secret
 ```
 
-### 4. 添加知识文档
+### 4. 下载模型
+
+首次使用需要下载 BGE 模型（约 2GB）：
+
+```bash
+# 国内用户推荐使用镜像
+python scripts/download_models.py --mirror
+
+# 国外用户直接下载
+python scripts/download_models.py
+```
+
+或者配置环境变量：
+```bash
+# Linux/Mac
+export HF_ENDPOINT=https://hf-mirror.com
+
+# Windows PowerShell
+$env:HF_ENDPOINT = "https://hf-mirror.com"
+```
+
+### 5. 添加知识文档
 
 将企业文档放入 `docs/` 目录：
 ```
@@ -64,13 +85,13 @@ docs/
 └── ...
 ```
 
-### 5. 索引文档
+### 6. 索引文档
 
 ```bash
 python src/main.py index
 ```
 
-### 6. 测试搜索
+### 7. 测试搜索
 
 ```bash
 python src/main.py search "公司请假流程是什么？"

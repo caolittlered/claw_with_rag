@@ -11,9 +11,14 @@ openclaw:
 
 # RAG 配置
 rag:
+  # Hugging Face 镜像（中国大陆用户请取消注释）
+  # hf_endpoint: "https://hf-mirror.com"
+  
   # Embedding 配置
   embedding:
     model: "BAAI/bge-large-zh-v1.5"
+    # 国内镜像用户改为：
+    # model: "hf-mirror/BAAI/bge-large-zh-v1.5"
     device: "cpu"       # cpu | cuda
   
   # Reranker 配置  

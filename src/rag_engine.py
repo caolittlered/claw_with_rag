@@ -24,6 +24,13 @@ class RAGEngine:
     def __init__(self, config_path: str = "./config/config.yaml"):
         """初始化 RAG 引擎"""
         self.config = self._load_config(config_path)
+        
+        # 配置 Hugging Face 镜像（中国大陆用户）
+        hf_endpoint = self.config.get('rag', {}).get('hf_endpoint')
+        if hf_endpoint:
+            os.environ['HF_ENDPOINT'] = hf_endpoint
+            print(f"[RAG] 使用镜像: {hf_endpoint}")
+        
         self.embeddings = self._init_embeddings()
         self.reranker = None  # 延迟加载
         self.vectorstore = None
