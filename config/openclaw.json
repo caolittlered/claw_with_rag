@@ -1,0 +1,59 @@
+# OpenClaw 配置模板
+# 复制此文件并填入你的配置
+
+{
+  "models": {
+    "mode": "merge",
+    "providers": {
+      "aliyun": {
+        "baseUrl": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+        "apiKey": "${ALIYUN_API_KEY}",
+        "api": "openai-completions",
+        "models": [
+          {
+            "id": "glm-5",
+            "name": "阿里云百炼GLM-5",
+            "api": "openai-completions",
+            "reasoning": false,
+            "input": ["text"],
+            "cost": {
+              "input": 0.0005,
+              "output": 0.001
+            },
+            "contextWindow": 128000,
+            "maxTokens": 8192
+          }
+        ]
+      }
+    }
+  },
+  "agents": {
+    "defaults": {
+      "model": {
+        "primary": "aliyun/glm-5"
+      },
+      "models": {
+        "aliyun/glm-5": {
+          "streaming": true
+        }
+      }
+    }
+  },
+  "channels": {
+    "feishu": {
+      "enabled": true,
+      "appId": "${FEISHU_APP_ID}",
+      "appSecret": "${FEISHU_APP_SECRET}",
+      "domain": "feishu",
+      "groupPolicy": "open",
+      "streaming": true
+    }
+  },
+  "plugins": {
+    "entries": {
+      "feishu": {
+        "enabled": true
+      }
+    }
+  }
+}

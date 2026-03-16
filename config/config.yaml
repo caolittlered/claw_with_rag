@@ -1,0 +1,62 @@
+# 项目配置文件
+
+# OpenClaw 相关配置
+openclaw:
+  model:
+    provider: "aliyun"  # aliyun | deepseek | openai
+    model_id: "glm-5"   # 模型ID
+  feishu:
+    app_id: ""          # 飞书应用ID
+    app_secret: ""      # 飞书应用密钥
+
+# RAG 配置
+rag:
+  # Embedding 配置
+  embedding:
+    model: "BAAI/bge-large-zh-v1.5"
+    device: "cpu"       # cpu | cuda
+  
+  # Reranker 配置  
+  reranker:
+    model: "BAAI/bge-reranker-large"
+    device: "cpu"
+  
+  # 检索配置
+  retrieval:
+    top_k: 10                    # 初始召回数量
+    rerank_top_k: 5              # 重排后返回数量
+    similarity_threshold: 0.5    # 相似度阈值
+  
+  # 文档切分配置
+  chunking:
+    chunk_size: 500              # 切分大小（字符）
+    chunk_overlap: 50            # 切分重叠
+  
+  # 向量数据库
+  vector_db:
+    type: "chroma"
+    persist_directory: "./data/chroma"
+
+# 文档路径
+documents:
+  input_dir: "./docs"            # 输入文档目录
+  supported_formats:
+    - ".txt"
+    - ".pdf"
+    - ".docx"
+    - ".doc"
+    - ".xlsx"
+    - ".xls"
+
+# 内部问题识别关键词（用于判断是否走RAG）
+internal_keywords:
+  - "内部"
+  - "公司"
+  - "我们"
+  - "企业"
+  - "制度"
+  - "流程"
+  - "规定"
+  - "政策"
+  - "员工"
+  - "部门"
