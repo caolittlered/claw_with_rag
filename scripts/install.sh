@@ -50,7 +50,7 @@ echo -e "${GREEN}✓ Python 依赖安装完成${NC}"
 echo -e "\n${YELLOW}[4/5] 检查 OpenClaw...${NC}"
 if ! command -v openclaw &> /dev/null; then
     echo -e "${YELLOW}OpenClaw 未安装，正在安装...${NC}"
-    npm install -g openclaw
+    curl -fsSL https://openclaw.ai/install.sh | bash
 else
     OPENCLAW_VERSION=$(openclaw --version 2>&1 | head -1)
     echo -e "${GREEN}✓ OpenClaw 已安装: $OPENCLAW_VERSION${NC}"
