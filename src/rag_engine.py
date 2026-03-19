@@ -29,21 +29,32 @@ def find_local_model(model_id: str) -> Optional[str]:
     
     优先查找 ModelScope 缓存，其次 HuggingFace 缓存
     """
-    # ModelScope 缓存目录
-    modelscope_cache = Path.home() / ".cache" / "modelscope" / "hub"
+    # ModelScope 缓存目录 (新版结构: hub/models/org/model-name)
+    modelscope_cache = Path.home() / ".cache" / "modelscope" / "hub" / "models"
     
     # 检查 ModelScope 缓存
     ms_model_id = MODELSCOPE_MODELS.get(model_id, model_id)
-    ms_cache_path = modelscope_cache / ms_model_id.replace("/", "__")
-    if ms_cache_path.exists():
-        print(f"[RAG] 使用 ModelScope 缓存: {ms_cache_path}")
-        return str(ms_cache_path)
+    org, model_name = ms_model_id.split("/")
     
-    # 也检查带 -- 的格式 (modelscope 新版缓存格式)
-    ms_cache_path2 = modelscope_cache / ms_model_id.replace("/", "--")
-    if ms_cache_path2.exists():
-        print(f"[RAG] 使用 ModelScope 缓存: {ms_cache_path2}")
-        return str(ms_cache_path2)
+    # 尝试多种可能的目录名格式
+    possible_names = [
+        model_name,                    # bge-large-zh-v1.5
+        model_name.replace(".", "___"), # bge-large-zh-v1___5 (modelscope 转义格式)
+        model_name.replace("-", "_"),   # bge_large_zh_v1_5
+    ]
+    
+    for name in possible_names:
+        ms_cache_path = modelscope_cache / org / name
+        if ms_cache_path.exists():
+            print(f"[RAG] 使用 ModelScope 缓存: {ms_cache_path}")
+            return str(ms_cache_path)
+    
+    # 旧版 ModelScope 缓存结构 (hub/org__model)
+    modelscope_cache_old = Path.home() / ".cache" / "modelscope" / "hub"
+    ms_cache_path_old = modelscope_cache_old / ms_model_id.replace("/", "__")
+    if ms_cache_path_old.exists():
+        print(f"[RAG] 使用 ModelScope 缓存 (旧版): {ms_cache_path_old}")
+        return str(ms_cache_path_old)
     
     # HuggingFace 缓存目录
     hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
