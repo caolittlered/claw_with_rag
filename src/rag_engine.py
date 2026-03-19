@@ -17,6 +17,44 @@ from chromadb.config import Settings
 import yaml
 
 
+# ModelScope 模型 ID 映射
+MODELSCOPE_MODELS = {
+    "BAAI/bge-large-zh-v1.5": "Xorbits/bge-large-zh-v1.5",
+    "BAAI/bge-reranker-large": "Xorbits/bge-reranker-large",
+}
+
+
+def find_local_model(model_id: str) -> Optional[str]:
+    """查找本地缓存的模型路径
+    
+    优先查找 ModelScope 缓存，其次 HuggingFace 缓存
+    """
+    # ModelScope 缓存目录
+    modelscope_cache = Path.home() / ".cache" / "modelscope" / "hub"
+    
+    # 检查 ModelScope 缓存
+    ms_model_id = MODELSCOPE_MODELS.get(model_id, model_id)
+    ms_cache_path = modelscope_cache / ms_model_id.replace("/", "__")
+    if ms_cache_path.exists():
+        print(f"[RAG] 使用 ModelScope 缓存: {ms_cache_path}")
+        return str(ms_cache_path)
+    
+    # 也检查带 -- 的格式 (modelscope 新版缓存格式)
+    ms_cache_path2 = modelscope_cache / ms_model_id.replace("/", "--")
+    if ms_cache_path2.exists():
+        print(f"[RAG] 使用 ModelScope 缓存: {ms_cache_path2}")
+        return str(ms_cache_path2)
+    
+    # HuggingFace 缓存目录
+    hf_cache = Path.home() / ".cache" / "huggingface" / "hub"
+    hf_cache_path = hf_cache / f"models--{model_id.replace('/', '--')}"
+    if hf_cache_path.exists():
+        print(f"[RAG] 使用 HuggingFace 缓存: {hf_cache_path}")
+        return model_id  # 返回原始 ID，transformers 会自动找到缓存
+    
+    return None
+
+
 class RAGEngine:
     """RAG 检索引擎"""
     
@@ -25,7 +63,8 @@ class RAGEngine:
         self.config = self._load_config(config_path)
         
         # 配置 Hugging Face 镜像（中国大陆用户）
-        hf_endpoint = self.config.get('rag', {}).get('hf_endpoint')
+        rag_config = self.config.get('rag', {})
+        hf_endpoint = rag_config.get('hf_endpoint')
         if hf_endpoint:
             os.environ['HF_ENDPOINT'] = hf_endpoint
             print(f"[RAG] 使用镜像: {hf_endpoint}")
@@ -46,6 +85,17 @@ class RAGEngine:
         model_name = embedding_config['model']
         device = embedding_config.get('device', 'cpu')
         
+        # 尝试查找本地缓存
+        local_path = find_local_model(model_name)
+        if local_path:
+            model_name = local_path
+        else:
+            # 没找到本地缓存，设置镜像重试
+            if 'HF_ENDPOINT' not in os.environ:
+                print("[RAG] 未找到本地缓存，尝试使用镜像...")
+                os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+        
+        print(f"[RAG] 加载 Embedding 模型: {model_name}")
         return HuggingFaceEmbeddings(
             model_name=model_name,
             model_kwargs={'device': device},
@@ -59,8 +109,18 @@ class RAGEngine:
         
         from sentence_transformers import CrossEncoder
         reranker_config = self.config['rag']['reranker']
+        model_name = reranker_config['model']
+        
+        # 尝试查找本地缓存
+        local_path = find_local_model(model_name)
+        if local_path:
+            model_name = local_path
+        elif 'HF_ENDPOINT' not in os.environ:
+            os.environ['HF_ENDPOINT'] = 'https://hf-mirror.com'
+        
+        print(f"[RAG] 加载 Reranker 模型: {model_name}")
         self.reranker = CrossEncoder(
-            reranker_config['model'],
+            model_name,
             max_length=512,
             device=reranker_config.get('device', 'cpu')
         )
