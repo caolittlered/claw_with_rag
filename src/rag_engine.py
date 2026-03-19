@@ -7,11 +7,10 @@ import os
 from typing import List, Optional
 from pathlib import Path
 
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.vectorstores import Chroma
-from langchain_community.docstore.in_memory import InMemoryDocstore
-from langchain.schema import Document
+from langchain_core.documents import Document
 
 import chromadb
 from chromadb.config import Settings
