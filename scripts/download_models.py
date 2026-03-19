@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 """
 模型下载脚本
 预先下载所需模型，避免运行时等待
