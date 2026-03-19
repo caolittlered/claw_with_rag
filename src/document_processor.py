@@ -7,7 +7,7 @@ import os
 from typing import List, Optional
 from pathlib import Path
 
-from langchain.schema import Document
+from langchain_core.documents import Document
 import pypdf
 from docx import Document as DocxDocument
 import pandas as pd
