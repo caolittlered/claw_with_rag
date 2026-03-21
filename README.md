@@ -153,6 +153,40 @@ internal_keywords:
 
 ## 🔧 高级用法
 
+### 启动 API 服务（模型常驻内存）
+
+每次 CLI 查询都需要重新加载模型（约 1-2 秒），推荐使用 API 服务：
+
+```bash
+# 启动 API 服务
+python src/api.py
+
+# 或使用 uvicorn
+uvicorn src.api:app --host 0.0.0.0 --port 8000
+```
+
+**API 接口：**
+
+```bash
+# 搜索
+curl -X POST "http://localhost:8000/search" \
+  -H "Content-Type: application/json" \
+  -d '{"query": "公司请假流程", "top_k": 5}'
+
+# 索引文档（后台执行）
+curl -X POST "http://localhost:8000/index" \
+  -H "Content-Type: application/json" \
+  -d '{"docs_dir": "./docs_inc/inc_1"}'
+
+# 构建 LLM 上下文
+curl "http://localhost:8000/context?query=年假政策"
+
+# 健康检查
+curl "http://localhost:8000/health"
+```
+
+**API 文档：** 访问 `http://localhost:8000/docs` 查看交互式文档。
+
 ### 自定义 Embedding 模型
 
 ```yaml
