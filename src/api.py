@@ -4,6 +4,7 @@ FastAPI 服务，模型常驻内存
 """
 
 import os
+import time
 from typing import Optional
 from pathlib import Path
 
@@ -22,6 +23,9 @@ CONFIG_PATH = os.getenv("RAG_CONFIG", "./config/config.yaml")
 
 # 全局 RAG 引擎（启动时加载）
 rag_engine: Optional[RAGEngine] = None
+startup_time: float = 0  # 启动时间戳
+load_time: float = 0     # 加载耗时
+request_count: int = 0
 
 
 # 请求/响应模型
@@ -76,10 +80,18 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """启动时加载模型"""
-    global rag_engine
+    global rag_engine, startup_time, load_time
+    print("[API] ========================================")
     print("[API] 正在加载 RAG 引擎...")
+    print("[API] ========================================")
+    start = time.time()
     rag_engine = RAGEngine(CONFIG_PATH)
-    print("[API] RAG 引擎加载完成")
+    load_time = time.time() - start
+    startup_time = time.time()
+    print("[API] ========================================")
+    print(f"[API] RAG 引擎加载完成！耗时: {load_time:.2f}s")
+    print("[API] 模型已常驻内存，后续请求无需重新加载")
+    print("[API] ========================================")
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -101,10 +113,19 @@ async def search(request: SearchRequest):
     - **query**: 搜索内容
     - **top_k**: 返回结果数量
     """
+    global request_count
     if not rag_engine:
         raise HTTPException(status_code=503, detail="RAG 引擎未初始化")
     
+    request_count += 1
+    req_id = request_count
+    start = time.time()
+    print(f"[API] 请求 #{req_id} 搜索: {request.query[:50]}...")
+    
     results = rag_engine.retrieve_with_rerank(request.query, request.top_k)
+    
+    elapsed = time.time() - start
+    print(f"[API] 请求 #{req_id} 完成，耗时: {elapsed:.3f}s，返回 {len(results)} 条结果")
     
     return SearchResponse(
         query=request.query,
