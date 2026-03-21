@@ -24,6 +24,12 @@ def main():
     index_parser.add_argument('--config', '-c', default='./config/config.yaml',
                               help='配置文件')
     
+    # 增量索引命令
+    inc_parser = subparsers.add_parser('inc-index', help='增量索引指定目录的文档')
+    inc_parser.add_argument('docs_dir', help='要索引的文档目录')
+    inc_parser.add_argument('--config', '-c', default='./config/config.yaml',
+                            help='配置文件')
+    
     # 搜索命令
     search_parser = subparsers.add_parser('search', help='搜索知识库')
     search_parser.add_argument('query', help='搜索内容')
@@ -40,6 +46,15 @@ def main():
         engine = RAGEngine(args.config)
         engine.index_documents(docs)
         print("索引完成!")
+        
+    elif args.command == 'inc-index':
+        print(f"增量索引目录: {args.docs_dir}")
+        docs = process_directory(args.docs_dir)
+        print(f"共 {len(docs)} 个文档")
+        
+        engine = RAGEngine(args.config)
+        engine.index_documents(docs)
+        print("增量索引完成!")
         
     elif args.command == 'search':
         engine = RAGEngine(args.config)

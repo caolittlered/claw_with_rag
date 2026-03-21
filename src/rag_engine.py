@@ -4,6 +4,7 @@ RAG 引擎核心模块
 """
 
 import os
+import hashlib
 from typing import List, Optional
 from pathlib import Path
 
@@ -165,13 +166,21 @@ class RAGEngine:
         )
     
     def index_documents(self, documents: List[Document]):
-        """索引文档"""
+        """索引文档（使用内容 hash 去重）"""
         text_splitter = self._get_text_splitter()
         split_docs = text_splitter.split_documents(documents)
         
+        # 用内容 hash 作为 ID，重复内容不会重复存储
+        ids = []
+        for doc in split_docs:
+            # 使用文件路径 + 内容生成 hash，保证唯一性
+            source = doc.metadata.get('source', '')
+            content_hash = hashlib.md5(f"{source}:{doc.page_content}".encode()).hexdigest()
+            ids.append(content_hash)
+        
         print(f"正在索引 {len(split_docs)} 个文档片段...")
-        self.vectorstore.add_documents(split_docs)
-        print(f"索引完成！")
+        self.vectorstore.add_documents(split_docs, ids=ids)
+        print(f"索引完成！（重复内容已自动跳过）")
     
     def retrieve(self, query: str, top_k: Optional[int] = None) -> List[Document]:
         """检索相关文档"""
