@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>注册 - Suni AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="auth-page">
+    <div class="auth-container">
+        <div class="auth-card">
+            <a href="/" class="auth-logo">
+                <span class="logo-icon">🌟</span>
+                <span class="logo-text">Suni AI</span>
+            </a>
+            
+            <h1>创建账户</h1>
+            <p class="auth-subtitle">免费注册，体验企业知识智能体</p>
+            
+            <form id="register-form" class="auth-form">
+                <div class="form-group">
+                    <label for="username">用户名</label>
+                    <input type="text" id="username" name="username" placeholder="请输入用户名" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="email">邮箱</label>
+                    <input type="email" id="email" name="email" placeholder="请输入邮箱" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="password">密码</label>
+                    <input type="password" id="password" name="password" placeholder="请设置密码（至少6位）" minlength="6" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="company">公司名称（选填）</label>
+                    <input type="text" id="company" name="company" placeholder="请输入公司名称">
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-full">注册</button>
+            </form>
+            
+            <div class="auth-footer">
+                <p>已有账户？ <a href="/login">立即登录</a></p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.getElementById('register-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const username = document.getElementById('username').value;
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            const company = document.getElementById('company').value;
+            
+            try {
+                const response = await fetch('/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username, email, password, company: company || null })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    // 注册成功后自动登录
+                    const loginResponse = await fetch('/api/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, password })
+                    });
+                    
+                    const loginData = await loginResponse.json();
+                    
+                    if (loginResponse.ok) {
+                        localStorage.setItem('token', loginData.access_token);
+                        localStorage.setItem('user', JSON.stringify(loginData.user));
+                        window.location.href = '/chat';
+                    } else {
+                        alert('注册成功，请登录');
+                        window.location.href = '/login';
+                    }
+                } else {
+                    alert(data.detail || '注册失败');
+                }
+            } catch (error) {
+                alert('注册失败：' + error.message);
+            }
+        });
+    </script>
+</body>
+</html>

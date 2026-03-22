@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智能助手 - Suni AI</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="chat-page">
+    <!-- 检查登录状态 -->
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) {
+            window.location.href = '/login';
+        }
+    </script>
+
+    <div class="chat-layout">
+        <!-- 侧边栏 -->
+        <aside class="chat-sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="logo">
+                    <span class="logo-icon">🌟</span>
+                    <span class="logo-text">Suni AI</span>
+                </a>
+            </div>
+            
+            <!-- 知识库面板 -->
+            <div class="knowledge-panel">
+                <div class="panel-header">
+                    <h3>📚 企业知识库</h3>
+                </div>
+                
+                <div class="upload-section">
+                    <input type="file" id="file-upload" multiple accept=".txt,.pdf,.docx,.xlsx,.md" hidden>
+                    <button class="btn btn-outline btn-small" onclick="document.getElementById('file-upload').click()">
+                        📤 上传文档
+                    </button>
+                </div>
+                
+                <div id="document-list" class="document-list">
+                    <!-- 文档列表将通过 JS 加载 -->
+                    <p class="empty-hint">暂无文档，点击上方按钮上传</p>
+                </div>
+            </div>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <span id="username">用户</span>
+                </div>
+                <button class="btn btn-outline btn-small" onclick="logout()">退出登录</button>
+            </div>
+        </aside>
+
+        <!-- 主聊天区 -->
+        <main class="chat-main">
+            <div class="chat-header">
+                <h2>企业知识智能体</h2>
+                <p>基于您的企业知识库回答问题</p>
+            </div>
+            
+            <div id="chat-messages" class="chat-messages">
+                <!-- 欢迎消息 -->
+                <div class="message assistant">
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        <p>您好！我是企业知识智能助手。</p>
+                        <p>您可以上传企业文档构建知识库，然后用自然语言提问，我会基于您的知识库给出精准回答。</p>
+                        <p>试试问：</p>
+                        <ul class="example-questions">
+                            <li onclick="sendExample(this)">公司的年假政策是什么？</li>
+                            <li onclick="sendExample(this)">如何申请报销？</li>
+                            <li onclick="sendExample(this)">入职需要准备什么材料？</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="chat-input-area">
+                <div class="input-options">
+                    <label class="checkbox-label">
+                        <input type="checkbox" id="use-knowledge" checked>
+                        使用知识库增强
+                    </label>
+                </div>
+                <div class="input-wrapper">
+                    <textarea 
+                        id="message-input" 
+                        placeholder="输入您的问题..." 
+                        rows="1"
+                        onkeydown="handleKeydown(event)"
+                    ></textarea>
+                    <button class="btn btn-primary" onclick="sendMessage()">发送</button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // 用户信息
+        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        document.getElementById('username').textContent = user.username || '用户';
+        
+        // 加载文档列表
+        async function loadDocuments() {
+            try {
+                const response = await fetch('/api/knowledge/documents', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                const data = await response.json();
+                const listEl = document.getElementById('document-list');
+                
+                if (data.documents && data.documents.length > 0) {
+                    listEl.innerHTML = data.documents.map(doc => `
+                        <div class="document-item ${doc.is_indexed ? 'indexed' : 'indexing'}">
+                            <span class="doc-icon">📄</span>
+                            <span class="doc-name">${doc.filename}</span>
+                            <span class="doc-status">${doc.is_indexed ? '✓' : '⏳'}</span>
+                            <button class="doc-delete" onclick="deleteDocument(${doc.id})">×</button>
+                        </div>
+                    `).join('');
+                } else {
+                    listEl.innerHTML = '<p class="empty-hint">暂无文档，点击上方按钮上传</p>';
+                }
+            } catch (error) {
+                console.error('加载文档失败:', error);
+            }
+        }
+        
+        // 上传文档
+        document.getElementById('file-upload').addEventListener('change', async (e) => {
+            const files = e.target.files;
+            
+            for (const file of files) {
+                const formData = new FormData();
+                formData.append('file', file);
+                
+                try {
+                    const response = await fetch('/api/knowledge/upload', {
+                        method: 'POST',
+                        headers: { 'Authorization': `Bearer ${token}` },
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    
+                    if (response.ok) {
+                        addSystemMessage(`📄 "${file.name}" 上传成功，正在建立索引...`);
+                    } else {
+                        addSystemMessage(`❌ "${file.name}" 上传失败: ${data.detail}`);
+                    }
+                } catch (error) {
+                    addSystemMessage(`❌ 上传失败: ${error.message}`);
+                }
+            }
+            
+            // 清空文件选择
+            e.target.value = '';
+            
+            // 刷新文档列表
+            setTimeout(loadDocuments, 2000);
+        });
+        
+        // 删除文档
+        async function deleteDocument(docId) {
+            if (!confirm('确定删除此文档？')) return;
+            
+            try {
+                await fetch(`/api/knowledge/documents/${docId}`, {
+                    method: 'DELETE',
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                
+                loadDocuments();
+            } catch (error) {
+                alert('删除失败');
+            }
+        }
+        
+        // 发送消息
+        async function sendMessage() {
+            const input = document.getElementById('message-input');
+            const message = input.value.trim();
+            
+            if (!message) return;
+            
+            const useKnowledge = document.getElementById('use-knowledge').checked;
+            
+            // 添加用户消息
+            addMessage('user', message);
+            input.value = '';
+            
+            // 添加加载指示
+            const loadingId = addMessage('assistant', '思考中...');
+            
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        use_knowledge: useKnowledge
+                    })
+                });
+                
+                const data = await response.json();
+                
+                // 更新消息
+                updateMessage(loadingId, data.response);
+                
+            } catch (error) {
+                updateMessage(loadingId, `❌ 请求失败: ${error.message}`);
+            }
+        }
+        
+        // 添加消息到聊天区
+        function addMessage(role, content) {
+            const container = document.getElementById('chat-messages');
+            const id = 'msg-' + Date.now();
+            
+            const messageEl = document.createElement('div');
+            messageEl.className = `message ${role}`;
+            messageEl.id = id;
+            
+            if (role === 'user') {
+                messageEl.innerHTML = `
+                    <div class="message-content">
+                        <p>${escapeHtml(content)}</p>
+                    </div>
+                    <div class="message-avatar">👤</div>
+                `;
+            } else {
+                messageEl.innerHTML = `
+                    <div class="message-avatar">🤖</div>
+                    <div class="message-content">
+                        <p>${escapeHtml(content)}</p>
+                    </div>
+                `;
+            }
+            
+            container.appendChild(messageEl);
+            container.scrollTop = container.scrollHeight;
+            
+            return id;
+        }
+        
+        // 更新消息
+        function updateMessage(id, content) {
+            const el = document.getElementById(id);
+            if (el) {
+                const contentEl = el.querySelector('.message-content p');
+                if (contentEl) {
+                    contentEl.innerHTML = formatResponse(content);
+                }
+            }
+        }
+        
+        // 添加系统消息
+        function addSystemMessage(content) {
+            const container = document.getElementById('chat-messages');
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message system';
+            messageEl.innerHTML = `<div class="system-notice">${content}</div>`;
+            container.appendChild(messageEl);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // 示例问题点击
+        function sendExample(el) {
+            document.getElementById('message-input').value = el.textContent;
+            sendMessage();
+        }
+        
+        // 键盘事件
+        function handleKeydown(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        }
+        
+        // HTML 转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // 格式化响应（支持简单的 markdown）
+        function formatResponse(text) {
+            return text
+                .replace(/\n/g, '<br>')
+                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+                .replace(/`(.+?)`/g, '<code>$1</code>');
+        }
+        
+        // 登出
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+        
+        // 初始化
+        loadDocuments();
+    </script>
+</body>
+</html>

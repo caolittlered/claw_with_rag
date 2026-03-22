@@ -8,6 +8,19 @@ openclaw:
   feishu:
     app_id: ""          # 飞书应用ID
     app_secret: ""      # 飞书应用密钥
+  gateway:
+    url: "ws://127.0.0.1:18789"
+    token: ""           # Gateway 认证 token（如需要）
+
+# JWT 配置（用户认证）
+jwt:
+  secret: "change-me-in-production-use-random-string"
+  algorithm: "HS256"
+  expire_hours: 24
+
+# 数据库配置
+database:
+  url: "sqlite+aiosqlite:///./data/suni.db"
 
 # RAG 配置
 rag:
@@ -65,3 +78,20 @@ internal_keywords:
   - "政策"
   - "员工"
   - "部门"
+
+# 用户知识库配置
+knowledge:
+  upload_dir: "./data/user_docs"
+  allowed_extensions:
+    - ".txt"
+    - ".pdf"
+    - ".docx"
+    - ".xlsx"
+    - ".md"
+  max_file_size_mb: 50
+
+# 服务配置
+server:
+  host: "0.0.0.0"
+  port: 3000
+  debug: true

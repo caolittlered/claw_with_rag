@@ -70,8 +70,19 @@ def find_local_model(model_id: str) -> Optional[str]:
 class RAGEngine:
     """RAG 检索引擎"""
     
-    def __init__(self, config_path: str = "./config/config.yaml"):
-        """初始化 RAG 引擎"""
+    # 全局 embeddings 实例（所有用户共享，节省内存）
+    _global_embeddings = None
+    _global_reranker = None
+    _global_config = None
+    
+    def __init__(self, config_path: str = "./config/config.yaml", collection_name: str = "knowledge_base"):
+        """初始化 RAG 引擎
+        
+        Args:
+            config_path: 配置文件路径
+            collection_name: ChromaDB collection 名称（用于用户隔离）
+        """
+        self.collection_name = collection_name
         self.config = self._load_config(config_path)
         
         # 配置 Hugging Face 镜像（中国大陆用户）
@@ -81,8 +92,13 @@ class RAGEngine:
             os.environ['HF_ENDPOINT'] = hf_endpoint
             print(f"[RAG] 使用镜像: {hf_endpoint}")
         
-        self.embeddings = self._init_embeddings()
-        self.reranker = None  # 延迟加载
+        # 使用全局 embeddings（共享模型，节省内存）
+        if RAGEngine._global_embeddings is None:
+            RAGEngine._global_embeddings = self._init_embeddings()
+            RAGEngine._global_config = self.config
+        self.embeddings = RAGEngine._global_embeddings
+        
+        self.reranker = None  # 使用全局 reranker
         self.vectorstore = None
         self._init_vectorstore()
     
@@ -115,8 +131,9 @@ class RAGEngine:
         )
     
     def _init_reranker(self):
-        """初始化 Reranker 模型（延迟加载）"""
-        if self.reranker is not None:
+        """初始化 Reranker 模型（延迟加载，全局共享）"""
+        if RAGEngine._global_reranker is not None:
+            self.reranker = RAGEngine._global_reranker
             return
         
         from sentence_transformers import CrossEncoder
@@ -136,6 +153,7 @@ class RAGEngine:
             max_length=512,
             device=reranker_config.get('device', 'cpu')
         )
+        RAGEngine._global_reranker = self.reranker  # 保存到全局
     
     def _init_vectorstore(self):
         """初始化向量数据库"""
@@ -148,11 +166,11 @@ class RAGEngine:
         # 创建 Chroma 客户端
         client = chromadb.PersistentClient(path=persist_dir)
         
-        # 初始化向量存储
+        # 初始化向量存储（使用用户隔离的 collection）
         self.vectorstore = Chroma(
             client=client,
             embedding_function=self.embeddings,
-            collection_name="knowledge_base"
+            collection_name=self.collection_name
         )
     
     def _get_text_splitter(self) -> RecursiveCharacterTextSplitter:

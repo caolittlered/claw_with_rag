@@ -1,283 +1,112 @@
-# 企业知识库 RAG Agent
+# Suni AI - 企业知识智能体平台
 
-基于 OpenClaw + RAG 的企业内部知识搜索 Agent，支持一键部署。
+基于 OpenClaw + RAG 的企业内部知识智能问答系统。
 
-## 🚀 特性
+## 🌟 功能特性
 
-- **智能问答**: 基于企业内部知识库的精准问答
-- **多格式支持**: txt, pdf, docx, xlsx 等常见文档格式
-- **中文优化**: 使用 BGE 系列模型，针对中文优化
-- **重排序**: BGE Reranker 提升检索精度
-- **一键部署**: 完整安装脚本，快速上线
+- **智能问答**: 基于企业内部知识库的自然语言问答
+- **知识库管理**: 上传文档自动构建向量索引
+- **用户系统**: 注册、登录、独立知识空间
+- **RAG 增强**: BGE Embedding + Reranker，精准检索
 
-## 📦 技术栈
-
-| 组件 | 技术选型 |
-|------|----------|
-| Agent 框架 | OpenClaw |
-| LLM | 阿里云百炼 GLM-5 |
-| Embedding | BAAI/bge-large-zh-v1.5 |
-| Reranker | BAAI/bge-reranker-large |
-| 向量数据库 | ChromaDB |
-| 文档处理 | LangChain |
-
-## 🛠️ 快速开始
-
-### 1. 克隆项目
-
-```bash
-git clone https://github.com/caolittlered/claw_with_rag.git
-cd claw_with_rag
-```
-
-### 2. 运行安装脚本
-
-**Linux/Mac:**
-```bash
-chmod +x scripts/install.sh
-./scripts/install.sh
-```
-
-**Windows:**
-```powershell
-Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
-.\scripts\install.ps1
-```
-
-### 3. 配置 API 密钥
-
-编辑 `config/.env`:
-```env
-ALIYUN_API_KEY=your_aliyun_api_key
-FEISHU_APP_ID=your_feishu_app_id
-FEISHU_APP_SECRET=your_feishu_app_secret
-```
-
-### 4. 下载模型
-
-首次使用需要下载 BGE 模型（约 2GB）：
-
-```bash
-# 国内用户推荐使用镜像
-python scripts/download_models.py --mirror
-
-# 国外用户直接下载
-python scripts/download_models.py
-```
-
-或者配置环境变量：
-```bash
-# Linux/Mac
-export HF_ENDPOINT=https://hf-mirror.com
-
-# Windows PowerShell
-$env:HF_ENDPOINT = "https://hf-mirror.com"
-```
-
-### 5. 添加知识文档
-
-将企业文档放入 `docs/` 目录：
-```
-docs/
-├── 员工手册.pdf
-├── 报销流程.docx
-├── 公司制度.xlsx
-└── ...
-```
-
-### 6. 索引文档
-
-```bash
-python src/main.py index
-```
-
-### 7. 测试搜索
-
-```bash
-python src/main.py search "公司请假流程是什么？"
-```
-
-## 📁 项目结构
+## 🏗️ 项目架构
 
 ```
 claw_with_rag/
-├── config/                 # 配置文件
-│   ├── config.yaml        # 主配置
-│   ├── openclaw.json      # OpenClaw 配置模板
-│   └── .env.example       # 环境变量模板
-├── docs/                   # 知识文档目录
-├── src/                    # 核心代码
-│   ├── rag_engine.py      # RAG 引擎
-│   ├── document_processor.py  # 文档处理
-│   └── main.py            # 命令行工具
-├── skills/                 # OpenClaw Skills
-│   └── internal-search/   # 内部知识搜索 Skill
-├── scripts/               # 安装脚本
-│   ├── install.sh         # Linux/Mac
-│   └── install.ps1        # Windows
-├── data/                   # 数据目录 (自动创建)
-│   └── chroma/            # 向量数据库
-├── requirements.txt       # Python 依赖
-└── README.md
+├── config/
+│   └── config.yaml          # 配置文件
+├── docs/                     # 示例知识文档
+├── src/
+│   ├── rag_engine.py        # RAG 引擎
+│   ├── document_processor.py # 文档处理
+│   ├── api.py               # RAG API（原有）
+│   ├── web_api.py           # Web 用户系统 API
+│   ├── models.py            # 用户数据模型
+│   └── auth.py              # JWT 认证
+├── web/
+│   ├── static/              # CSS/JS
+│   └── templates/           # HTML 模板
+├── data/
+│   ├── chroma/              # 向量数据库
+│   ├── user_docs/           # 用户上传文档
+│   └── suni.db              # 用户数据库
+├── run.py                    # 统一启动入口
+└── start.bat                 # Windows 启动脚本
 ```
 
-## ⚙️ 配置说明
+## 🚀 快速开始
 
-### RAG 配置 (config/config.yaml)
-
-```yaml
-rag:
-  retrieval:
-    top_k: 10              # 初始召回数量
-    rerank_top_k: 5        # 重排后返回数量
-    similarity_threshold: 0.5  # 相似度阈值
-  
-  chunking:
-    chunk_size: 500        # 文档切分大小
-    chunk_overlap: 50      # 切分重叠
-```
-
-### 内部问题关键词
-
-在 `config/config.yaml` 中配置用于识别内部问题的关键词：
-
-```yaml
-internal_keywords:
-  - "公司"
-  - "内部"
-  - "员工"
-  - "流程"
-  - "制度"
-  # 添加更多...
-```
-
-## 🔧 高级用法
-
-### 启动 API 服务（模型常驻内存）
-
-每次 CLI 查询都需要重新加载模型（约 1-2 秒），推荐使用 API 服务：
+### 1. 启动 OpenClaw Gateway
 
 ```bash
-# 启动 API 服务
-python src/api.py
-
-# 或使用 uvicorn
-uvicorn src.api:app --host 0.0.0.0 --port 8000
-```
-
-**API 接口：**
-
-```bash
-# 搜索
-curl -X POST "http://localhost:8000/search" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "公司请假流程", "top_k": 5}'
-
-# 索引文档（后台执行）
-curl -X POST "http://localhost:8000/index" \
-  -H "Content-Type: application/json" \
-  -d '{"docs_dir": "./docs_inc/inc_1"}'
-
-# 构建 LLM 上下文
-curl "http://localhost:8000/context?query=年假政策"
-
-# 健康检查
-curl "http://localhost:8000/health"
-```
-
-**API 文档：** 访问 `http://localhost:8000/docs` 查看交互式文档。
-
-### 自定义 Embedding 模型
-
-```yaml
-rag:
-  embedding:
-    model: "BAAI/bge-large-zh-v1.5"
-    device: "cuda"  # 使用 GPU 加速
-```
-
-### 调整相似度阈值
-
-降低阈值会返回更多结果，但可能降低相关性：
-```yaml
-rag:
-  retrieval:
-    similarity_threshold: 0.3  # 更宽松
-```
-
-## 🌐 部署到 VPS
-
-### 1. 准备 VPS
-
-推荐配置：
-- CPU: 2核+
-- 内存: 4GB+
-- 存储: 20GB+
-- 系统: Ubuntu 22.04 / CentOS 8
-
-### 2. 安装依赖
-
-```bash
-# 安装 Python
-sudo apt update
-sudo apt install python3 python3-pip python3-venv -y
-
-# 安装 Node.js
-curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-sudo apt install nodejs -y
-
-# 安装 OpenClaw
-sudo npm install -g openclaw
-```
-
-### 3. 部署项目
-
-```bash
-git clone https://github.com/caolittlered/claw_with_rag.git
-cd claw_with_rag
-./scripts/install.sh
-```
-
-### 4. 配置飞书
-
-1. 创建飞书应用: https://open.feishu.cn/app
-2. 配置事件订阅和权限
-3. 填入 App ID 和 App Secret
-
-### 5. 启动服务
-
-```bash
-# 启动 OpenClaw
 openclaw gateway start
-
-# 配置飞书 Webhook
-openclaw config set channels.feishu.appId YOUR_APP_ID
-openclaw config set channels.feishu.appSecret YOUR_SECRET
 ```
 
-## 📝 示例
+### 2. 启动 Suni AI
 
-### 员工问答
-
-```
-用户: 我们公司的年假政策是什么？
-Agent: 根据公司规定，员工年假如下：
-- 工作满1年不满10年：5天
-- 工作满10年不满20年：10天
-- 工作满20年：15天
-（来源：员工手册.pdf）
-
-用户: 报销需要哪些材料？
-Agent: 报销需要以下材料：
-1. 正规发票原件
-2. 费用明细单
-3. 相关审批单据
-（来源：报销流程.docx）
+**Windows:**
+```powershell
+.\start.bat
 ```
 
-## 🤝 贡献
+**Linux/Mac:**
+```bash
+python run.py
+```
 
-欢迎提交 Issue 和 Pull Request！
+### 3. 访问
+
+打开浏览器访问 http://localhost:3000
+
+## 📝 API 接口
+
+### 认证
+- `POST /api/register` - 用户注册
+- `POST /api/login` - 用户登录
+- `GET /api/me` - 获取当前用户
+
+### 聊天
+- `POST /api/chat` - 与智能体对话
+
+### 知识库
+- `POST /api/knowledge/upload` - 上传文档
+- `GET /api/knowledge/documents` - 文档列表
+- `DELETE /api/knowledge/documents/{id}` - 删除文档
+
+### RAG API（原有）
+- `POST /search` - 搜索知识库
+- `POST /index` - 索引文档
+- `GET /context` - 构建 RAG 上下文
+
+## 🔧 配置说明
+
+编辑 `config/config.yaml`:
+
+```yaml
+# JWT 密钥（生产环境务必修改）
+jwt:
+  secret: "your-random-secret-key"
+
+# 数据库
+database:
+  url: "sqlite+aiosqlite:///./data/suni.db"
+
+# 知识库
+knowledge:
+  upload_dir: "./data/user_docs"
+  max_file_size_mb: 50
+```
+
+## 🛠️ 技术栈
+
+| 组件 | 技术 |
+|------|------|
+| Web 框架 | FastAPI |
+| 数据库 | SQLite + SQLAlchemy |
+| AI 后端 | OpenClaw Gateway |
+| Embedding | BAAI/bge-large-zh-v1.5 |
+| Reranker | BAAI/bge-reranker-large |
+| 向量数据库 | ChromaDB |
 
 ## 📄 License
 

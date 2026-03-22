@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Suni AI - 企业知识智能体</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="logo">
+                <span class="logo-icon">🌟</span>
+                <span class="logo-text">Suni AI</span>
+            </a>
+            <div class="nav-links">
+                <a href="#features">功能</a>
+                <a href="#about">关于</a>
+                <a href="/login" class="btn btn-outline">登录</a>
+                <a href="/register" class="btn btn-primary">免费试用</a>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Hero 区域 -->
+    <section class="hero">
+        <div class="container">
+            <div class="hero-content">
+                <h1>让企业知识<span class="highlight">活</span>起来</h1>
+                <p class="subtitle">
+                    基于 AI 的企业内部知识智能体，让员工用自然语言查询企业文档、
+                    规章制度、流程手册，秒级响应，精准回答。
+                </p>
+                <div class="hero-actions">
+                    <a href="/register" class="btn btn-primary btn-large">
+                        立即体验 →
+                    </a>
+                    <a href="#features" class="btn btn-outline btn-large">
+                        了解更多
+                    </a>
+                </div>
+            </div>
+            <div class="hero-visual">
+                <div class="chat-preview">
+                    <div class="chat-message user">
+                        <p>公司的年假政策是什么？</p>
+                    </div>
+                    <div class="chat-message assistant">
+                        <p>根据员工手册第3章第2节，年假政策如下：</p>
+                        <ul>
+                            <li>工作满1年不满10年：5天</li>
+                            <li>工作满10年不满20年：10天</li>
+                            <li>工作满20年以上：15天</li>
+                        </ul>
+                        <p class="source">📌 来源：员工手册.pdf</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 功能区域 -->
+    <section id="features" class="features">
+        <div class="container">
+            <h2>核心功能</h2>
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">📚</div>
+                    <h3>智能知识库</h3>
+                    <p>上传企业文档，自动构建可检索的知识库。支持 PDF、Word、Excel 等多种格式。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">💬</div>
+                    <h3>自然语言问答</h3>
+                    <p>员工用日常语言提问，AI 理解意图并给出精准答案，附带原文出处。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">🔒</div>
+                    <h3>数据隔离</h3>
+                    <p>每个企业独立的知识空间，数据互不干扰，保障信息安全。</p>
+                </div>
+                <div class="feature-card">
+                    <div class="feature-icon">⚡</div>
+                    <h3>秒级响应</h3>
+                    <p>基于先进的 RAG 技术，结合语义检索与重排序，快速精准定位答案。</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 使用场景 -->
+    <section class="scenarios">
+        <div class="container">
+            <h2>使用场景</h2>
+            <div class="scenarios-list">
+                <div class="scenario">
+                    <div class="scenario-number">01</div>
+                    <div class="scenario-content">
+                        <h3>员工入职培训</h3>
+                        <p>新员工通过对话快速了解公司制度、福利政策、工作流程，减少 HR 重复解答。</p>
+                    </div>
+                </div>
+                <div class="scenario">
+                    <div class="scenario-number">02</div>
+                    <div class="scenario-content">
+                        <h3>规章制度查询</h3>
+                        <p>报销流程？请假审批？合同模板？一句话查询，再也不用翻文档。</p>
+                    </div>
+                </div>
+                <div class="scenario">
+                    <div class="scenario-number">03</div>
+                    <div class="scenario-content">
+                        <h3>技术文档检索</h3>
+                        <p>API 文档、技术规范、代码规范，精准定位，提升研发效率。</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 关于 -->
+    <section id="about" class="about">
+        <div class="container">
+            <h2>关于我们</h2>
+            <p>
+                Suni AI 专注于企业智能化转型，提供基于 AI 的知识管理解决方案。
+                我们相信，企业的知识资产应该被高效利用，而不是躺在文件夹里吃灰。
+            </p>
+            <div class="tech-stack">
+                <span class="tech-tag">OpenClaw</span>
+                <span class="tech-tag">RAG</span>
+                <span class="tech-tag">BGE Embedding</span>
+                <span class="tech-tag">ChromaDB</span>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+        <div class="container">
+            <h2>准备好让企业知识活起来了吗？</h2>
+            <p>免费注册，立即体验 AI 知识助手的强大功能</p>
+            <a href="/register" class="btn btn-primary btn-large">免费开始 →</a>
+        </div>
+    </section>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <div class="footer-content">
+                <div class="footer-brand">
+                    <span class="logo-icon">🌟</span>
+                    <span class="logo-text">Suni AI</span>
+                    <p>企业知识智能体平台</p>
+                </div>
+                <div class="footer-links">
+                    <div class="footer-section">
+                        <h4>产品</h4>
+                        <a href="#features">功能介绍</a>
+                        <a href="#about">关于我们</a>
+                    </div>
+                    <div class="footer-section">
+                        <h4>联系</h4>
+                        <a href="mailto:contact@suniai.com">contact@suniai.com</a>
+                    </div>
+                </div>
+            </div>
+            <div class="footer-bottom">
+                <p>&copy; 2024 Suni AI. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+
+    <script src="/static/main.js"></script>
+</body>
+</html>
