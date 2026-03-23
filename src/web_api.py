@@ -409,6 +409,11 @@ async def delete_document(
     
     # 删除记录
     await db.delete(doc)
+    
+    # 减少文档计数
+    if current_user.doc_count > 0:
+        current_user.doc_count -= 1
+    
     await db.commit()
     
     return {"message": "已删除"}

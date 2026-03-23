@@ -337,18 +337,113 @@ a {
     font-size: 18px;
 }
 
-.tech-stack {
-    display: flex;
-    justify-content: center;
-    gap: 12px;
-    flex-wrap: wrap;
+.about-features {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 24px;
+    max-width: 900px;
+    margin: 0 auto;
 }
 
-.tech-tag {
-    padding: 8px 16px;
-    background: var(--secondary);
-    border-radius: 20px;
+.about-item {
+    padding: 24px;
+    background: var(--bg-alt);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+}
+
+.about-icon {
+    font-size: 32px;
+    margin-bottom: 12px;
+}
+
+.about-item h4 {
+    font-size: 16px;
+    margin-bottom: 8px;
+    color: var(--text);
+}
+
+.about-item p {
     font-size: 14px;
+    color: var(--text-light);
+    margin: 0;
+}
+
+/* 新的使用场景网格布局 */
+.scenarios-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 24px;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.scenario-card {
+    padding: 32px;
+    background: var(--bg);
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--border);
+    transition: all 0.3s;
+}
+
+.scenario-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-lg);
+    border-color: var(--primary);
+}
+
+.scenario-icon {
+    font-size: 40px;
+    margin-bottom: 16px;
+}
+
+.scenario-card h3 {
+    font-size: 18px;
+    margin-bottom: 12px;
+}
+
+.scenario-card ul {
+    list-style: none;
+    padding: 0;
+}
+
+.scenario-card li {
+    padding: 6px 0;
+    color: var(--text-light);
+    font-size: 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.scenario-card li:last-child {
+    border-bottom: none;
+}
+
+/* 配额信息显示 */
+.quota-info {
+    margin: 12px 0;
+    padding: 12px;
+    background: var(--bg);
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+}
+
+.quota-item {
+    display: flex;
+    justify-content: space-between;
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+.quota-item:last-child {
+    margin-bottom: 0;
+}
+
+.quota-label {
+    color: var(--text-light);
+}
+
+.quota-value {
+    font-weight: 600;
     color: var(--primary);
 }
 
