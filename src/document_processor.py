@@ -106,6 +106,37 @@ class DocumentProcessor:
         return "\n\n".join(all_text)
 
 
+def process_file(file_path: str, user_id: Optional[int] = None) -> Optional[Document]:
+    """处理单个文件
+    
+    Args:
+        file_path: 文件路径
+        user_id: 用户ID（可选，用于标识）
+    
+    Returns:
+        Document 对象或 None（处理失败时）
+    """
+    path = Path(file_path)
+    if not path.exists():
+        print(f"文件不存在: {file_path}")
+        return None
+    
+    processor = DocumentProcessor(str(path.parent))
+    
+    try:
+        docs = processor.load_document(path)
+        if docs:
+            doc = docs[0]
+            # 添加用户ID到metadata（如果提供）
+            if user_id is not None:
+                doc.metadata['user_id'] = user_id
+            return doc
+    except Exception as e:
+        print(f"处理文件失败 {path.name}: {e}")
+    
+    return None
+
+
 def process_directory(input_dir: str) -> List[Document]:
     """处理目录中的所有文档"""
     processor = DocumentProcessor(input_dir)
