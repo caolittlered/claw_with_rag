@@ -40,6 +40,12 @@ class User(Base):
     # 状态
     is_active = Column(Boolean, default=True)
     
+    # 使用限制（免费试用）
+    chat_count = Column(Integer, default=0)  # 已使用问答次数
+    max_chats = Column(Integer, default=10)  # 最大问答次数
+    doc_count = Column(Integer, default=0)   # 已上传文档数
+    max_docs = Column(Integer, default=10)   # 最大文档数
+    
     # 时间戳
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)

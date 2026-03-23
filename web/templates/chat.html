@@ -48,6 +48,16 @@
                 <div class="user-info">
                     <span id="username">用户</span>
                 </div>
+                <div class="quota-info">
+                    <div class="quota-item">
+                        <span class="quota-label">💬 问答</span>
+                        <span id="chat-quota" class="quota-value">--/--</span>
+                    </div>
+                    <div class="quota-item">
+                        <span class="quota-label">📄 文档</span>
+                        <span id="doc-quota" class="quota-value">--/--</span>
+                    </div>
+                </div>
                 <button class="btn btn-outline btn-small" onclick="logout()">退出登录</button>
             </div>
         </aside>
@@ -55,8 +65,8 @@
         <!-- 主聊天区 -->
         <main class="chat-main">
             <div class="chat-header">
-                <h2>企业知识智能体</h2>
-                <p>基于您的企业知识库回答问题</p>
+                <h2>Suni AI 智能助手</h2>
+                <p>编程 · 写作 · 数据分析 · 文档问答，一站式 AI 办公</p>
             </div>
             
             <div id="chat-messages" class="chat-messages">
@@ -64,14 +74,19 @@
                 <div class="message assistant">
                     <div class="message-avatar">🤖</div>
                     <div class="message-content">
-                        <p>您好！我是企业知识智能助手。</p>
-                        <p>您可以上传企业文档构建知识库，然后用自然语言提问，我会基于您的知识库给出精准回答。</p>
-                        <p>试试问：</p>
+                        <p>您好！我是 Suni AI 智能助手，您的全能办公搭档 💼</p>
+                        <p>我可以帮您：</p>
                         <ul class="example-questions">
+                            <li onclick="sendExample(this)">写一段 Python 爬虫代码</li>
+                            <li onclick="sendExample(this)">帮我写一份产品推广文案</li>
+                            <li onclick="sendExample(this)">生成一份季度工作总结 PPT 大纲</li>
+                            <li onclick="sendExample(this)">分析这份 Excel 数据并给出建议</li>
+                            <li onclick="sendExample(this)">起草一封客户合作邮件</li>
                             <li onclick="sendExample(this)">公司的年假政策是什么？</li>
-                            <li onclick="sendExample(this)">如何申请报销？</li>
-                            <li onclick="sendExample(this)">入职需要准备什么材料？</li>
                         </ul>
+                        <p style="margin-top:10px;font-size:13px;color:#666;">
+                            💡 上传企业文档后，我还可以基于您的内部知识回答问题
+                        </p>
                     </div>
                 </div>
             </div>
@@ -100,6 +115,32 @@
         // 用户信息
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         document.getElementById('username').textContent = user.username || '用户';
+        
+        // 加载用户配额信息
+        async function loadUserQuota() {
+            try {
+                const response = await fetch('/api/me', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                });
+                const data = await response.json();
+                
+                if (response.ok) {
+                    document.getElementById('chat-quota').textContent = 
+                        `${data.remaining_chats}/${data.max_chats}`;
+                    document.getElementById('doc-quota').textContent = 
+                        `${data.remaining_docs}/${data.max_docs}`;
+                    
+                    // 如果问答次数用完，显示提示
+                    if (data.remaining_chats <= 0) {
+                        addSystemMessage(
+                            '⛔ 您的免费试用次数已用完。如需 unlimited 使用，请联系我们定制化部署。'
+                        );
+                    }
+                }
+            } catch (error) {
+                console.error('加载配额失败:', error);
+            }
+        }
         
         // 加载文档列表
         async function loadDocuments() {
@@ -306,6 +347,7 @@
         }
         
         // 初始化
+        loadUserQuota();
         loadDocuments();
     </script>
 </body>

@@ -185,15 +185,21 @@ async def login(request: LoginRequest, db: AsyncSession = Depends(get_db)):
     }
 
 
-@app.get("/api/me", response_model=UserResponse)
+@app.get("/api/me")
 async def get_me(current_user: User = Depends(get_current_user)):
     """获取当前用户信息"""
-    return UserResponse(
-        id=current_user.id,
-        email=current_user.email,
-        username=current_user.username,
-        company=current_user.company
-    )
+    return {
+        "id": current_user.id,
+        "email": current_user.email,
+        "username": current_user.username,
+        "company": current_user.company,
+        "chat_count": current_user.chat_count,
+        "max_chats": current_user.max_chats,
+        "doc_count": current_user.doc_count,
+        "max_docs": current_user.max_docs,
+        "remaining_chats": current_user.max_chats - current_user.chat_count,
+        "remaining_docs": current_user.max_docs - current_user.doc_count
+    }
 
 
 # ==================== 聊天 API ====================
@@ -201,9 +207,19 @@ async def get_me(current_user: User = Depends(get_current_user)):
 @app.post("/api/chat", response_model=ChatResponse)
 async def chat(
     request: ChatRequest,
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db)
 ):
     """与智能体对话（基于 RAG）"""
+    # 检查问答次数限制
+    if current_user.chat_count >= current_user.max_chats:
+        return ChatResponse(
+            response="⛔ 您的免费试用次数已用完（10次）。\n\n"
+                    "如需 unlimited 使用和定制化部署，请联系我们：\n"
+                    "📧 contact@suniai.com\n"
+                    "📱 或扫描页面底部二维码"
+        )
+    
     # 获取用户的 RAG 引擎
     rag_engine = get_user_rag_engine(current_user.id)
     
@@ -211,6 +227,10 @@ async def chat(
     context = ""
     if request.use_knowledge:
         context = rag_engine.build_context(request.message)
+    
+    # 增加问答计数
+    current_user.chat_count += 1
+    await db.commit()
     
     # 如果有知识库上下文，构建增强提示
     if context:
@@ -225,11 +245,22 @@ async def chat(
                 response_parts.append(f"📁 来源: {r['metadata'].get('filename', '未知')}")
                 response_parts.append(f"📊 相关度: {r['score']:.2f}\n")
             
+            remaining = current_user.max_chats - current_user.chat_count
+            response_parts.append(f"\n---\n💡 剩余 {remaining} 次免费问答机会")
+            
             return ChatResponse(response="\n".join(response_parts))
         else:
-            return ChatResponse(response="抱歉，在您的知识库中没有找到相关信息。请尝试上传相关文档或换一种问法。")
+            remaining = current_user.max_chats - current_user.chat_count
+            return ChatResponse(
+                response=f"抱歉，在您的知识库中没有找到相关信息。请尝试上传相关文档或换一种问法。\n\n"
+                        f"---\n💡 剩余 {remaining} 次免费问答机会"
+            )
     else:
-        return ChatResponse(response="您好！我是企业知识智能助手。请上传您的企业文档，我可以帮您查询和解答相关问题。")
+        remaining = current_user.max_chats - current_user.chat_count
+        return ChatResponse(
+            response=f"您好！我是企业知识智能助手。请上传您的企业文档，我可以帮您查询和解答相关问题。\n\n"
+                    f"---\n💡 剩余 {remaining} 次免费问答机会"
+        )
 
 
 # ==================== 知识库 API ====================
@@ -241,6 +272,13 @@ async def upload_knowledge(
     db: AsyncSession = Depends(get_db)
 ):
     """上传知识文档"""
+    # 检查文档数量限制
+    if current_user.doc_count >= current_user.max_docs:
+        raise HTTPException(
+            status_code=400, 
+            detail="您的免费文档配额已满（10个）。如需更多容量，请联系我们定制化部署。"
+        )
+    
     # 检查文件类型
     allowed_extensions = ['.txt', '.pdf', '.docx', '.xlsx', '.md']
     file_ext = Path(file.filename).suffix.lower()
@@ -261,6 +299,9 @@ async def upload_knowledge(
     file_path = upload_dir / file.filename
     with open(file_path, "wb") as f:
         f.write(content)
+    
+    # 增加文档计数
+    current_user.doc_count += 1
     
     # 创建记录
     doc = UserKnowledge(
