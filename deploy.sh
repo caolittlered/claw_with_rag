@@ -85,11 +85,19 @@ install_dependencies() {
 setup_project() {
     print_info "配置项目目录..."
     
-    # 创建应用目录
-    mkdir -p $APP_DIR
-    
     # 获取当前脚本所在目录
     SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    
+    # 如果目录已存在，先备份并删除（避免残留文件）
+    if [[ -d "$APP_DIR" ]]; then
+        print_warning "目录 $APP_DIR 已存在，正在清理..."
+        BACKUP_DIR="${APP_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
+        mv $APP_DIR $BACKUP_DIR
+        print_info "旧目录已备份到: $BACKUP_DIR"
+    fi
+    
+    # 创建新的应用目录
+    mkdir -p $APP_DIR
     
     # 如果当前目录就是项目目录，复制文件
     if [[ -f "$SCRIPT_DIR/run.py" ]]; then
@@ -100,6 +108,17 @@ setup_project() {
         print_warning "未找到项目文件，请手动上传项目到 $APP_DIR"
         print_info "可以使用: scp -r /本地项目路径 root@服务器IP:$APP_DIR"
         read -p "按回车继续（手动上传后）..."
+    fi
+    
+    # 从 /root/claw_with_rag 复制保留的配置文件
+    SOURCE_CONFIG="/root/claw_with_rag/config.yaml"
+    if [[ -f "$SOURCE_CONFIG" ]]; then
+        print_info "从 $SOURCE_CONFIG 复制配置文件..."
+        mkdir -p $APP_DIR/config
+        cp "$SOURCE_CONFIG" $APP_DIR/config/config.yaml
+        print_success "配置文件已替换"
+    else
+        print_warning "未找到保留的配置文件: $SOURCE_CONFIG，将使用默认配置"
     fi
     
     # 设置权限
