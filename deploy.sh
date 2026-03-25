@@ -81,62 +81,68 @@ install_dependencies() {
     print_success "系统依赖安装完成"
 }
 
-# 配置项目目录
+# 配置项目目录（原地工作模式，不复制项目）
 setup_project() {
-    print_info "配置项目目录..."
+    print_info "检查项目目录..."
     
-    # 获取当前脚本所在目录
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    
-    # 如果目录已存在，先备份并删除（避免残留文件）
-    if [[ -d "$APP_DIR" ]]; then
-        print_warning "目录 $APP_DIR 已存在，正在清理..."
-        BACKUP_DIR="${APP_DIR}_backup_$(date +%Y%m%d_%H%M%S)"
-        mv $APP_DIR $BACKUP_DIR
-        print_info "旧目录已备份到: $BACKUP_DIR"
+    # 检查项目目录是否存在且包含必要文件
+    if [[ ! -d "$APP_DIR" ]]; then
+        print_error "项目目录 $APP_DIR 不存在！"
+        print_info "请先上传项目文件到 $APP_DIR"
+        print_info "使用方法: scp -r /本地项目路径/* root@服务器IP:$APP_DIR/"
+        exit 1
     fi
     
-    # 创建新的应用目录
-    mkdir -p $APP_DIR
-    
-    # 如果当前目录就是项目目录，复制文件
-    if [[ -f "$SCRIPT_DIR/run.py" ]]; then
-        print_info "从当前目录复制项目文件..."
-        cp -r "$SCRIPT_DIR"/* $APP_DIR/
-        cp -r "$SCRIPT_DIR"/.[^.]* $APP_DIR/ 2>/dev/null || true
-    else
-        print_warning "未找到项目文件，请手动上传项目到 $APP_DIR"
-        print_info "可以使用: scp -r /本地项目路径 root@服务器IP:$APP_DIR"
-        read -p "按回车继续（手动上传后）..."
+    # 检查关键文件是否存在
+    if [[ ! -f "$APP_DIR/run.py" ]]; then
+        print_error "未找到 $APP_DIR/run.py，请确认项目文件已正确上传"
+        exit 1
     fi
     
-    # 从 /root/claw_with_rag 复制保留的配置文件
+    # 只备份配置文件（如果有更新的话）
     SOURCE_CONFIG="/root/claw_with_rag/config.yaml"
     if [[ -f "$SOURCE_CONFIG" ]]; then
-        print_info "从 $SOURCE_CONFIG 复制配置文件..."
+        print_info "更新配置文件..."
         mkdir -p $APP_DIR/config
         cp "$SOURCE_CONFIG" $APP_DIR/config/config.yaml
-        print_success "配置文件已替换"
-    else
-        print_warning "未找到保留的配置文件: $SOURCE_CONFIG，将使用默认配置"
+        print_success "配置文件已更新"
     fi
     
-    # 设置权限
-    chmod -R 755 $APP_DIR
+    # 确保数据目录存在
     mkdir -p $APP_DIR/data/user_docs
     chmod -R 777 $APP_DIR/data
     
-    print_success "项目目录配置完成"
+    # 设置权限
+    chmod -R 755 $APP_DIR
+    
+    print_success "项目目录检查完成（原地工作模式，不复制文件）"
 }
 
 # 创建 Python 虚拟环境
 setup_venv() {
-    print_info "激活 Python 虚拟环境..."
+    print_info "配置 Python 虚拟环境..."
     
     cd $APP_DIR
     
-    # 创建虚拟环境
-    # python3 -m venv venv
+    # 如果虚拟环境已存在，询问是否重建
+    if [[ -d "venv" ]]; then
+        print_warning "检测到已存在虚拟环境"
+        read -p "是否重建虚拟环境? (y/n, 默认n): " rebuild_venv
+        if [[ $rebuild_venv == "y" || $rebuild_venv == "Y" ]]; then
+            print_info "删除旧虚拟环境..."
+            rm -rf venv
+        else
+            print_info "使用现有虚拟环境"
+        fi
+    fi
+    
+    # 创建虚拟环境（如果不存在）
+    if [[ ! -d "venv" ]]; then
+        print_info "创建新的虚拟环境..."
+        python3 -m venv venv
+    fi
+    
+    # 激活虚拟环境
     source venv/bin/activate
     
     # 升级 pip
