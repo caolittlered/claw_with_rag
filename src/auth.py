@@ -7,12 +7,12 @@ from typing import Optional
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from jose import JWTError, jwt
-from passlib.context import CryptContext
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import yaml
 import os
 import hashlib
+import bcrypt
 
 from models import User, async_session
 
@@ -27,34 +27,34 @@ JWT_SECRET = os.getenv("JWT_SECRET", jwt_config.get('secret', 'change-me-in-prod
 JWT_ALGORITHM = jwt_config.get('algorithm', 'HS256')
 JWT_EXPIRE_HOURS = jwt_config.get('expire_hours', 24)
 
-# 密码哈希 - 使用 argon2 避免 bcrypt 兼容性问题
-pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
-
 # Bearer 认证
 security = HTTPBearer()
 
 
-def _prehash_password(password: str) -> str:
+def _prehash_password(password: str) -> bytes:
     """
     预处理密码：使用 SHA256 哈希，解决 bcrypt 72 字节限制
-    同时避免 passlib+bcrypt 版本兼容问题
+    返回 bytes 供 bcrypt 使用
     """
-    # 将密码编码为 bytes 后 SHA256，得到固定 64 字符的十六进制字符串
-    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+    # 将密码编码为 bytes 后 SHA256，得到固定 32 bytes
+    return hashlib.sha256(password.encode('utf-8')).digest()
 
 
 def hash_password(password: str) -> str:
-    """哈希密码"""
-    # 先预处理密码，确保长度固定且不超过限制
+    """哈希密码 - 使用原生 bcrypt"""
+    # 预处理密码，确保长度固定且不超过 bcrypt 限制
     prehashed = _prehash_password(password)
-    return pwd_context.hash(prehashed)
+    # bcrypt 加密，返回字符串
+    hashed = bcrypt.hashpw(prehashed, bcrypt.gensalt(rounds=12))
+    return hashed.decode('utf-8')
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """验证密码"""
+    """验证密码 - 使用原生 bcrypt"""
     # 同样预处理后再验证
     prehashed = _prehash_password(plain_password)
-    return pwd_context.verify(prehashed, hashed_password)
+    hashed_bytes = hashed_password.encode('utf-8')
+    return bcrypt.checkpw(prehashed, hashed_bytes)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
