@@ -12,6 +12,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 import yaml
 import os
+import hashlib
 
 from models import User, async_session
 
@@ -26,21 +27,34 @@ JWT_SECRET = os.getenv("JWT_SECRET", jwt_config.get('secret', 'change-me-in-prod
 JWT_ALGORITHM = jwt_config.get('algorithm', 'HS256')
 JWT_EXPIRE_HOURS = jwt_config.get('expire_hours', 24)
 
-# 密码哈希
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# 密码哈希 - 使用 argon2 避免 bcrypt 兼容性问题
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
 
 # Bearer 认证
 security = HTTPBearer()
 
 
+def _prehash_password(password: str) -> str:
+    """
+    预处理密码：使用 SHA256 哈希，解决 bcrypt 72 字节限制
+    同时避免 passlib+bcrypt 版本兼容问题
+    """
+    # 将密码编码为 bytes 后 SHA256，得到固定 64 字符的十六进制字符串
+    return hashlib.sha256(password.encode('utf-8')).hexdigest()
+
+
 def hash_password(password: str) -> str:
     """哈希密码"""
-    return pwd_context.hash(password)
+    # 先预处理密码，确保长度固定且不超过限制
+    prehashed = _prehash_password(password)
+    return pwd_context.hash(prehashed)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
     """验证密码"""
-    return pwd_context.verify(plain_password, hashed_password)
+    # 同样预处理后再验证
+    prehashed = _prehash_password(plain_password)
+    return pwd_context.verify(prehashed, hashed_password)
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
