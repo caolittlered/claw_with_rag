@@ -82,10 +82,13 @@ async def get_current_user(
     token = credentials.credentials
     try:
         payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        user_id: int = payload.get("sub")
+        user_id = payload.get("sub")
         if user_id is None:
             raise credentials_exception
-    except JWTError:
+        # JWT 解码后 user_id 可能是字符串，需要转为 int
+        user_id = int(user_id)
+    except (JWTError, ValueError, TypeError) as e:
+        print(f"[Auth] Token 验证失败: {e}")
         raise credentials_exception
     
     # 查询用户
@@ -93,5 +96,6 @@ async def get_current_user(
         result = await session.execute(select(User).where(User.id == user_id))
         user = result.scalar_one_or_none()
         if user is None:
+            print(f"[Auth] 用户不存在: user_id={user_id}")
             raise credentials_exception
         return user
