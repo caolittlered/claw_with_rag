@@ -16,7 +16,7 @@ NC='\033[0m' # No Color
 DOMAIN="www.suniai.site"
 EMAIL="your-email@example.com"  # 用于 SSL 证书
 APP_NAME="suniai"
-APP_DIR="/opt/claw_with_rag"
+APP_DIR="/root/claw_with_rag/claw_with_rag"
 APP_PORT=3000
 PYTHON_VERSION="3.11"
 
@@ -84,29 +84,6 @@ install_dependencies() {
 # 配置项目目录（原地工作模式，不复制项目）
 setup_project() {
     print_info "检查项目目录..."
-    
-    # 检查项目目录是否存在且包含必要文件
-    if [[ ! -d "$APP_DIR" ]]; then
-        print_error "项目目录 $APP_DIR 不存在！"
-        print_info "请先上传项目文件到 $APP_DIR"
-        print_info "使用方法: scp -r /本地项目路径/* root@服务器IP:$APP_DIR/"
-        exit 1
-    fi
-    
-    # 检查关键文件是否存在
-    if [[ ! -f "$APP_DIR/run.py" ]]; then
-        print_error "未找到 $APP_DIR/run.py，请确认项目文件已正确上传"
-        exit 1
-    fi
-    
-    # 只备份配置文件（如果有更新的话）
-    SOURCE_CONFIG="/root/claw_with_rag/config.yaml"
-    if [[ -f "$SOURCE_CONFIG" ]]; then
-        print_info "更新配置文件..."
-        mkdir -p $APP_DIR/config
-        cp "$SOURCE_CONFIG" $APP_DIR/config/config.yaml
-        print_success "配置文件已更新"
-    fi
     
     # 确保数据目录存在
     mkdir -p $APP_DIR/data/user_docs
