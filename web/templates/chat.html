@@ -13,6 +13,7 @@
         if (!token) {
             window.location.href = '/login';
         }
+        console.log('Token loaded:', token ? 'OK' : 'None');
     </script>
 
     <div class="chat-layout">
@@ -136,6 +137,9 @@
                             '⛔ 您的免费试用次数已用完。如需 unlimited 使用，请联系我们定制化部署。'
                         );
                     }
+                } else if (response.status === 401) {
+                    // Token 过期，跳转登录
+                    window.location.href = '/login';
                 }
             } catch (error) {
                 console.error('加载配额失败:', error);
@@ -250,6 +254,21 @@
                 
                 const data = await response.json();
                 
+                // 检查响应状态
+                if (!response.ok) {
+                    // 401 未授权，可能是 token 过期
+                    if (response.status === 401) {
+                        updateMessage(loadingId, '🔒 登录已过期，请重新登录');
+                        setTimeout(() => {
+                            window.location.href = '/login';
+                        }, 2000);
+                        return;
+                    }
+                    // 其他错误
+                    updateMessage(loadingId, `❌ ${data.detail || '请求失败'}`);
+                    return;
+                }
+                
                 // 更新消息
                 updateMessage(loadingId, data.response);
                 
@@ -333,7 +352,8 @@
         
         // 格式化响应（支持简单的 markdown）
         function formatResponse(text) {
-            return text
+            if (!text) return '';
+            return String(text)
                 .replace(/\n/g, '<br>')
                 .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
                 .replace(/`(.+?)`/g, '<code>$1</code>');
