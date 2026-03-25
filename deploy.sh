@@ -228,14 +228,39 @@ setup_ssl() {
     print_success "SSL 证书配置完成"
 }
 
-# 创建 Systemd 服务
+# 创建 Systemd 服务（网站前端 + RAG API）
 setup_systemd() {
     print_info "创建 Systemd 服务..."
     
-    cat > /etc/systemd/system/$APP_NAME.service << EOF
+    # 1. RAG API 服务（后端大模型，端口 8000）
+    cat > /etc/systemd/system/$APP_NAME-api.service << EOF
 [Unit]
-Description=Suni AI Service
+Description=Suni AI RAG API Service
 After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=$APP_DIR/src
+Environment="PATH=$APP_DIR/venv/bin"
+Environment="PYTHONPATH=$APP_DIR/src"
+Environment="PYTHONUNBUFFERED=1"
+ExecStart=$APP_DIR/venv/bin/python $APP_DIR/src/api.py
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    # 2. 网站前端服务（端口 3000）
+    cat > /etc/systemd/system/$APP_NAME-web.service << EOF
+[Unit]
+Description=Suni AI Web Service
+After=network.target $APP_NAME-api.service
+Requires=$APP_NAME-api.service
 
 [Service]
 Type=simple
@@ -256,9 +281,10 @@ EOF
 
     # 重新加载配置
     systemctl daemon-reload
-    systemctl enable $APP_NAME
+    systemctl enable $APP_NAME-api
+    systemctl enable $APP_NAME-web
     
-    print_success "Systemd 服务创建完成"
+    print_success "Systemd 服务创建完成（API + Web）"
 }
 
 # 配置防火墙
@@ -271,9 +297,10 @@ setup_firewall() {
     # 允许必要端口
     ufw default deny incoming
     ufw default allow outgoing
-    ufw allow 22/tcp    # SSH
-    ufw allow 80/tcp    # HTTP
-    ufw allow 443/tcp   # HTTPS
+    ufw allow 22/tcp     # SSH
+    ufw allow 80/tcp     # HTTP
+    ufw allow 443/tcp    # HTTPS
+    ufw allow 8000/tcp   # RAG API（内部服务）
     
     # 启用防火墙
     ufw --force enable
@@ -285,14 +312,27 @@ setup_firewall() {
 start_service() {
     print_info "启动 Suni AI 服务..."
     
-    systemctl start $APP_NAME
-    sleep 3
+    # 先启动 API 服务
+    systemctl start $APP_NAME-api
+    sleep 2
     
-    # 检查服务状态
-    if systemctl is-active --quiet $APP_NAME; then
-        print_success "服务启动成功！"
+    # 检查 API 服务
+    if systemctl is-active --quiet $APP_NAME-api; then
+        print_success "RAG API 服务启动成功 (端口 8000)"
     else
-        print_error "服务启动失败，查看日志: journalctl -u $APP_NAME -n 50"
+        print_error "RAG API 服务启动失败，查看日志: journalctl -u $APP_NAME-api -n 50"
+        exit 1
+    fi
+    
+    # 再启动 Web 服务
+    systemctl start $APP_NAME-web
+    sleep 2
+    
+    # 检查 Web 服务
+    if systemctl is-active --quiet $APP_NAME-web; then
+        print_success "Web 服务启动成功 (端口 3000)"
+    else
+        print_error "Web 服务启动失败，查看日志: journalctl -u $APP_NAME-web -n 50"
         exit 1
     fi
 }
@@ -304,19 +344,26 @@ print_finish() {
     print_success "Suni AI 部署完成！"
     echo "=========================================="
     echo ""
-    echo -e "访问地址: ${GREEN}https://$DOMAIN${NC}"
-    echo -e "本地测试: ${GREEN}curl http://localhost:$APP_PORT${NC}"
+    echo -e "🌐 访问地址: ${GREEN}http://$DOMAIN${NC}"
+    echo -e "🧪 本地测试: ${GREEN}curl http://localhost:$APP_PORT${NC}"
+    echo ""
+    echo "服务状态:"
+    echo -e "  RAG API (大模型后端): ${BLUE}http://localhost:8000${NC}"
+    echo -e "  Web 前端:            ${BLUE}http://localhost:$APP_PORT${NC}"
     echo ""
     echo "常用命令:"
-    echo -e "  查看状态: ${BLUE}systemctl status $APP_NAME${NC}"
-    echo -e "  查看日志: ${BLUE}journalctl -u $APP_NAME -f${NC}"
-    echo -e "  重启服务: ${BLUE}systemctl restart $APP_NAME${NC}"
-    echo -e "  停止服务: ${BLUE}systemctl stop $APP_NAME${NC}"
+    echo -e "  查看 API 状态: ${BLUE}systemctl status $APP_NAME-api${NC}"
+    echo -e "  查看 Web 状态: ${BLUE}systemctl status $APP_NAME-web${NC}"
+    echo -e "  查看 API 日志: ${BLUE}journalctl -u $APP_NAME-api -f${NC}"
+    echo -e "  查看 Web 日志: ${BLUE}journalctl -u $APP_NAME-web -f${NC}"
+    echo -e "  重启服务:      ${BLUE}systemctl restart $APP_NAME-api $APP_NAME-web${NC}"
+    echo -e "  停止服务:      ${BLUE}systemctl stop $APP_NAME-api $APP_NAME-web${NC}"
     echo ""
     echo "配置文件位置:"
-    echo -e "  应用配置: ${BLUE}$APP_DIR/config/config.yaml${NC}"
+    echo -e "  应用配置:   ${BLUE}$APP_DIR/config/config.yaml${NC}"
     echo -e "  Nginx 配置: ${BLUE}/etc/nginx/sites-available/$APP_NAME${NC}"
-    echo -e "  服务配置: ${BLUE}/etc/systemd/system/$APP_NAME.service${NC}"
+    echo -e "  API 服务:   ${BLUE}/etc/systemd/system/$APP_NAME-api.service${NC}"
+    echo -e "  Web 服务:   ${BLUE}/etc/systemd/system/$APP_NAME-web.service${NC}"
     echo ""
 }
 

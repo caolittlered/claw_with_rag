@@ -20,11 +20,15 @@ with open(CONFIG_PATH, 'r', encoding='utf-8') as f:
 
 if __name__ == "__main__":
     server_config = config.get('server', {})
+    host = server_config.get('host', '0.0.0.0')
+    port = server_config.get('port', 3000)
     
     print("=" * 50)
     print("🌟 Suni AI - 企业知识智能体平台")
     print("=" * 50)
-    print(f"📡 服务地址: http://{server_config.get('host', '0.0.0.0')}:{server_config.get('port', 3000)}")
+    print(f"📡 服务已启动!")
+    print(f"   本地访问: http://127.0.0.1:{port}")
+    print(f"   监听地址: {host}:{port}")
     print(f"📁 配置文件: {CONFIG_PATH}")
     print("=" * 50)
     
