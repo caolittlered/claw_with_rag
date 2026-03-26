@@ -284,7 +284,8 @@ async def chat_stream(
     # 检查问答次数限制
     if current_user.chat_count >= current_user.max_chats:
         async def limit_exceeded_stream():
-            yield f"data: {json.dumps({'content': '⛔ 您的免费试用次数已用完（10次）。\\n\\n如需 unlimited 使用和定制化部署，请联系我们：\\n📧 contact@suniai.com\\n📱 或扫描页面底部二维码'})}\n\n"
+            msg = "⛔ 您的免费试用次数已用完（10次）。\n\n如需 unlimited 使用和定制化部署，请联系我们：\n📧 contact@suniai.com\n📱 或扫描页面底部二维码"
+            yield f"data: {json.dumps({'content': msg})}\n\n"
             yield "data: [DONE]\n\n"
         
         return StreamingResponse(
