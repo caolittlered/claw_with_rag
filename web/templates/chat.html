@@ -345,6 +345,7 @@
                 });
                 
                 console.log('响应状态:', response.status, response.statusText);
+                console.log('响应头:', [...response.headers.entries()]);
                 
                 if (!response.ok) {
                     console.error('请求失败:', response.status, response.statusText);
@@ -359,21 +360,44 @@
                         updateStreamingMessage('❌ 接口未找到 (404)，请检查后端服务是否已更新');
                         return;
                     }
-                    const errorData = await response.json().catch(() => ({}));
-                    updateStreamingMessage(`❌ ${errorData.detail || '请求失败: ' + response.statusText}`);
+                    const errorText = await response.text().catch(() => '未知错误');
+                    console.error('错误响应:', errorText);
+                    updateStreamingMessage(`❌ 请求失败: ${response.status}`);
+                    return;
+                }
+                
+                // 检查是否是流式响应
+                const contentType = response.headers.get('content-type');
+                console.log('Content-Type:', contentType);
+                
+                if (!contentType || !contentType.includes('text/event-stream')) {
+                    console.warn('响应不是流式格式，尝试读取普通JSON');
+                    const data = await response.json();
+                    if (data.response) {
+                        updateStreamingMessage(data.response);
+                        finalizeStreamingMessage(data.response);
+                    }
                     return;
                 }
                 
                 // 读取流式数据
+                console.log('开始读取流式数据...');
                 const reader = response.body.getReader();
                 const decoder = new TextDecoder();
                 let fullContent = '';
+                let chunkCount = 0;
                 
                 while (true) {
                     const { done, value } = await reader.read();
-                    if (done) break;
+                    if (done) {
+                        console.log('流式读取完成，总块数:', chunkCount);
+                        break;
+                    }
                     
+                    chunkCount++;
                     const chunk = decoder.decode(value, { stream: true });
+                    console.log(`收到数据块 #${chunkCount}:`, chunk.substring(0, 100));
+                    
                     const lines = chunk.split('\n');
                     
                     for (const line of lines) {
@@ -381,9 +405,10 @@
                             const data = line.slice(6);
                             
                             if (data === '[DONE]') {
-                                // 流结束
+                                console.log('收到结束标记 [DONE]');
                                 finalizeStreamingMessage(fullContent);
                             } else if (data.startsWith('[ERROR]')) {
+                                console.error('收到错误:', data);
                                 updateStreamingMessage(`❌ ${data.slice(7)}`);
                             } else {
                                 try {
@@ -396,12 +421,14 @@
                                         finalizeStreamingMessage(fullContent);
                                     }
                                 } catch (e) {
-                                    // 忽略解析错误
+                                    console.warn('解析数据失败:', data, e);
                                 }
                             }
                         }
                     }
                 }
+                
+                console.log('流处理完成，总内容长度:', fullContent.length);
                 
             } catch (error) {
                 updateStreamingMessage(`❌ 请求失败: ${error.message}`);
