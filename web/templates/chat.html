@@ -5,6 +5,85 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>智能助手 - Suni AI</title>
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* 流式输出时的光标动画 */
+        .streaming-cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background: var(--primary);
+            margin-left: 4px;
+            animation: blink 1s infinite;
+            vertical-align: middle;
+        }
+        
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0; }
+        }
+        
+        /* 消息内容样式优化 */
+        .message-content {
+            max-width: 70%;
+            padding: 16px 20px;
+            border-radius: var(--radius-lg);
+            background: var(--secondary);
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        
+        .message-content pre {
+            background: #1e293b;
+            color: #e2e8f0;
+            padding: 12px;
+            border-radius: var(--radius);
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+        
+        .message-content code {
+            background: rgba(99, 102, 241, 0.1);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 14px;
+        }
+        
+        .message-content pre code {
+            background: transparent;
+            padding: 0;
+        }
+        
+        /* 代码块复制按钮 */
+        .code-block-wrapper {
+            position: relative;
+            margin: 8px 0;
+        }
+        
+        .copy-code-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            padding: 4px 8px;
+            background: rgba(255,255,255,0.1);
+            border: none;
+            border-radius: 4px;
+            color: #94a3b8;
+            font-size: 12px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        
+        .code-block-wrapper:hover .copy-code-btn {
+            opacity: 1;
+        }
+        
+        .copy-code-btn:hover {
+            background: rgba(255,255,255,0.2);
+            color: white;
+        }
+    </style>
 </head>
 <body class="chat-page">
     <!-- 检查登录状态 -->
@@ -106,7 +185,7 @@
                         rows="1"
                         onkeydown="handleKeydown(event)"
                     ></textarea>
-                    <button class="btn btn-primary" onclick="sendMessage()">发送</button>
+                    <button class="btn btn-primary" onclick="sendMessage()" id="send-btn">发送</button>
                 </div>
             </div>
         </main>
@@ -116,6 +195,10 @@
         // 用户信息
         const user = JSON.parse(localStorage.getItem('user') || '{}');
         document.getElementById('username').textContent = user.username || '用户';
+        
+        // 当前是否正在流式接收
+        let isStreaming = false;
+        let currentMessageEl = null;
         
         // 加载用户配额信息
         async function loadUserQuota() {
@@ -223,12 +306,13 @@
             }
         }
         
-        // 发送消息
+        // 发送消息（流式版本）
         async function sendMessage() {
             const input = document.getElementById('message-input');
+            const sendBtn = document.getElementById('send-btn');
             const message = input.value.trim();
             
-            if (!message) return;
+            if (!message || isStreaming) return;
             
             const useKnowledge = document.getElementById('use-knowledge').checked;
             
@@ -236,15 +320,22 @@
             addMessage('user', message);
             input.value = '';
             
-            // 添加加载指示
-            const loadingId = addMessage('assistant', '思考中...');
+            // 禁用发送按钮
+            sendBtn.disabled = true;
+            sendBtn.textContent = '发送中...';
+            isStreaming = true;
+            
+            // 创建AI消息容器
+            currentMessageEl = addStreamingMessage();
             
             try {
-                const response = await fetch('/api/chat', {
+                // 使用 fetch 读取流式响应
+                const response = await fetch('/api/chat/stream', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`
+                        'Authorization': `Bearer ${token}`,
+                        'Accept': 'text/event-stream'
                     },
                     body: JSON.stringify({
                         message: message,
@@ -252,32 +343,72 @@
                     })
                 });
                 
-                const data = await response.json();
-                
-                // 检查响应状态
                 if (!response.ok) {
-                    // 401 未授权，可能是 token 过期
                     if (response.status === 401) {
-                        updateMessage(loadingId, '🔒 登录已过期，请重新登录');
+                        updateStreamingMessage('🔒 登录已过期，请重新登录');
                         setTimeout(() => {
                             window.location.href = '/login';
                         }, 2000);
                         return;
                     }
-                    // 其他错误
-                    updateMessage(loadingId, `❌ ${data.detail || '请求失败'}`);
+                    const errorData = await response.json().catch(() => ({}));
+                    updateStreamingMessage(`❌ ${errorData.detail || '请求失败'}`);
                     return;
                 }
                 
-                // 更新消息
-                updateMessage(loadingId, data.response);
+                // 读取流式数据
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullContent = '';
+                
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    
+                    const chunk = decoder.decode(value, { stream: true });
+                    const lines = chunk.split('\n');
+                    
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+                            
+                            if (data === '[DONE]') {
+                                // 流结束
+                                finalizeStreamingMessage(fullContent);
+                            } else if (data.startsWith('[ERROR]')) {
+                                updateStreamingMessage(`❌ ${data.slice(7)}`);
+                            } else {
+                                try {
+                                    const parsed = JSON.parse(data);
+                                    if (parsed.content) {
+                                        fullContent += parsed.content;
+                                        updateStreamingMessage(fullContent, true);
+                                    }
+                                    if (parsed.done) {
+                                        finalizeStreamingMessage(fullContent);
+                                    }
+                                } catch (e) {
+                                    // 忽略解析错误
+                                }
+                            }
+                        }
+                    }
+                }
                 
             } catch (error) {
-                updateMessage(loadingId, `❌ 请求失败: ${error.message}`);
+                updateStreamingMessage(`❌ 请求失败: ${error.message}`);
+            } finally {
+                isStreaming = false;
+                sendBtn.disabled = false;
+                sendBtn.textContent = '发送';
+                currentMessageEl = null;
+                
+                // 刷新配额
+                loadUserQuota();
             }
         }
         
-        // 添加消息到聊天区
+        // 添加普通消息
         function addMessage(role, content) {
             const container = document.getElementById('chat-messages');
             const id = 'msg-' + Date.now();
@@ -297,26 +428,67 @@
                 messageEl.innerHTML = `
                     <div class="message-avatar">🤖</div>
                     <div class="message-content">
-                        <p>${escapeHtml(content)}</p>
+                        <p>${formatResponse(content)}</p>
                     </div>
                 `;
             }
             
             container.appendChild(messageEl);
-            container.scrollTop = container.scrollHeight;
+            scrollToBottom();
             
             return id;
         }
         
-        // 更新消息
-        function updateMessage(id, content) {
-            const el = document.getElementById(id);
-            if (el) {
-                const contentEl = el.querySelector('.message-content p');
-                if (contentEl) {
-                    contentEl.innerHTML = formatResponse(content);
-                }
+        // 添加流式消息（带光标）
+        function addStreamingMessage() {
+            const container = document.getElementById('chat-messages');
+            const id = 'msg-stream-' + Date.now();
+            
+            const messageEl = document.createElement('div');
+            messageEl.className = 'message assistant';
+            messageEl.id = id;
+            messageEl.innerHTML = `
+                <div class="message-avatar">🤖</div>
+                <div class="message-content">
+                    <p><span class="streaming-content"></span><span class="streaming-cursor"></span></p>
+                </div>
+            `;
+            
+            container.appendChild(messageEl);
+            scrollToBottom();
+            
+            return messageEl;
+        }
+        
+        // 更新流式消息内容
+        function updateStreamingMessage(content, isStreaming = false) {
+            if (!currentMessageEl) return;
+            
+            const contentSpan = currentMessageEl.querySelector('.streaming-content');
+            const cursor = currentMessageEl.querySelector('.streaming-cursor');
+            
+            if (contentSpan) {
+                contentSpan.innerHTML = formatResponse(content);
             }
+            
+            // 如果是完成状态，移除光标
+            if (!isStreaming && cursor) {
+                cursor.remove();
+            }
+            
+            scrollToBottom();
+        }
+        
+        // 完成流式消息
+        function finalizeStreamingMessage(content) {
+            if (!currentMessageEl) return;
+            
+            const contentEl = currentMessageEl.querySelector('.message-content');
+            if (contentEl) {
+                contentEl.innerHTML = `<p>${formatResponse(content)}</p>`;
+            }
+            
+            scrollToBottom();
         }
         
         // 添加系统消息
@@ -326,6 +498,12 @@
             messageEl.className = 'message system';
             messageEl.innerHTML = `<div class="system-notice">${content}</div>`;
             container.appendChild(messageEl);
+            scrollToBottom();
+        }
+        
+        // 滚动到底部
+        function scrollToBottom() {
+            const container = document.getElementById('chat-messages');
             container.scrollTop = container.scrollHeight;
         }
         
@@ -350,13 +528,42 @@
             return div.innerHTML;
         }
         
-        // 格式化响应（支持简单的 markdown）
+        // 格式化响应（支持 Markdown）
         function formatResponse(text) {
             if (!text) return '';
-            return String(text)
-                .replace(/\n/g, '<br>')
-                .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-                .replace(/`(.+?)`/g, '<code>$1</code>');
+            
+            let formatted = escapeHtml(text);
+            
+            // 代码块 (```code```)
+            formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                return `<div class="code-block-wrapper">
+                    <button class="copy-code-btn" onclick="copyCode(this)">复制</button>
+                    <pre><code class="language-${lang || ''}">${code.trim()}</code></pre>
+                </div>`;
+            });
+            
+            // 行内代码 (`code`)
+            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+            
+            // 粗体 (**text**)
+            formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+            
+            // 斜体 (*text*)
+            formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
+            
+            // 换行
+            formatted = formatted.replace(/\n/g, '<br>');
+            
+            return formatted;
+        }
+        
+        // 复制代码
+        function copyCode(btn) {
+            const code = btn.nextElementSibling.querySelector('code').textContent;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = '已复制!';
+                setTimeout(() => btn.textContent = '复制', 2000);
+            });
         }
         
         // 登出

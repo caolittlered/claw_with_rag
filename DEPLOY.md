@@ -1,5 +1,38 @@
 # 部署指南
 
+## 环境变量配置
+
+部署前请务必设置以下环境变量：
+
+```bash
+# 必需：OpenClaw Gateway 地址（流式输出功能依赖）
+export OPENCLAW_GATEWAY_URL=http://localhost:8080
+
+# 可选：OpenClaw Token
+export OPENCLAW_GATEWAY_TOKEN=your_token_here
+
+# 可选：自定义配置路径
+export RAG_CONFIG=/opt/claw_with_rag/config/config.yaml
+```
+
+**systemd 服务配置方式：**
+
+编辑 `/etc/systemd/system/suniai.service`：
+
+```ini
+[Service]
+Environment="OPENCLAW_GATEWAY_URL=http://localhost:8080"
+Environment="OPENCLAW_GATEWAY_TOKEN=your_token_here"
+```
+
+然后重载并重启：
+```bash
+sudo systemctl daemon-reload
+sudo systemctl restart suniai
+```
+
+---
+
 ## 快速部署
 
 ### 1. 上传项目到服务器

@@ -36,6 +36,37 @@ claw_with_rag/
 
 ## 🚀 快速开始
 
+### 环境变量配置
+
+创建 `.env` 文件或设置以下环境变量：
+
+```bash
+# OpenClaw Gateway 配置（流式输出必需）
+OPENCLAW_GATEWAY_URL=http://localhost:8080    # OpenClaw Gateway 地址
+OPENCLAW_GATEWAY_TOKEN=your_token_here        # OpenClaw Token（可选）
+
+# 可选：自定义配置路径
+RAG_CONFIG=./config/config.yaml
+```
+
+**Windows PowerShell:**
+```powershell
+$env:OPENCLAW_GATEWAY_URL="http://localhost:8080"
+$env:OPENCLAW_GATEWAY_TOKEN="your_token"
+```
+
+**Windows CMD:**
+```cmd
+set OPENCLAW_GATEWAY_URL=http://localhost:8080
+set OPENCLAW_GATEWAY_TOKEN=your_token
+```
+
+**Linux/Mac:**
+```bash
+export OPENCLAW_GATEWAY_URL=http://localhost:8080
+export OPENCLAW_GATEWAY_TOKEN=your_token
+```
+
 ### 1. 启动 OpenClaw Gateway
 
 ```bash
@@ -66,7 +97,15 @@ python run.py
 - `GET /api/me` - 获取当前用户
 
 ### 聊天
-- `POST /api/chat` - 与智能体对话
+- `POST /api/chat` - 与智能体对话（非流式）
+- `POST /api/chat/stream` - 与智能体对话（**流式输出**，推荐）
+
+**流式输出特性：**
+- 实时显示AI回复，无需等待完整响应
+- 支持打字机效果，带闪烁光标
+- 兼容 OpenClaw Gateway SSE 协议
+
+**注意：** 流式输出需要配置 `OPENCLAW_GATEWAY_URL` 环境变量指向 OpenClaw Gateway。
 
 ### 知识库
 - `POST /api/knowledge/upload` - 上传文档
@@ -79,6 +118,16 @@ python run.py
 - `GET /context` - 构建 RAG 上下文
 
 ## 🔧 配置说明
+
+### 环境变量
+
+| 变量名 | 说明 | 默认值 | 必需 |
+|--------|------|--------|------|
+| `OPENCLAW_GATEWAY_URL` | OpenClaw Gateway 地址 | - | **是**（流式输出） |
+| `OPENCLAW_GATEWAY_TOKEN` | OpenClaw 认证 Token | - | 否 |
+| `RAG_CONFIG` | 配置文件路径 | `./config/config.yaml` | 否 |
+
+### 配置文件
 
 编辑 `config/config.yaml`:
 
