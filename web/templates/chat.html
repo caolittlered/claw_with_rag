@@ -408,8 +408,14 @@
                                 console.log('收到结束标记 [DONE]');
                                 finalizeStreamingMessage(fullContent);
                             } else if (data.startsWith('[ERROR]')) {
-                                console.error('收到错误:', data);
-                                updateStreamingMessage(`❌ ${data.slice(7)}`);
+                                const errorMsg = data.slice(7);
+                                console.error('收到错误:', errorMsg);
+                                // 如果是 Gateway 错误，显示更友好的提示
+                                if (errorMsg.includes('Gateway') || errorMsg.includes('无法连接')) {
+                                    updateStreamingMessage('💡 正在使用本地模式回复...\n\n' + fullContent);
+                                } else {
+                                    updateStreamingMessage(`❌ ${errorMsg}`);
+                                }
                             } else {
                                 try {
                                     const parsed = JSON.parse(data);

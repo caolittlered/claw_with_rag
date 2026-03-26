@@ -215,6 +215,16 @@ OPENCLAW_GATEWAY_TOKEN = os.getenv("OPENCLAW_GATEWAY_TOKEN", "")
 
 async def call_openclaw_stream(message: str, context: str = ""):
     """调用 OpenClaw Gateway 流式接口"""
+    import logging
+    logger = logging.getLogger(__name__)
+    
+    gateway_url = os.getenv("OPENCLAW_GATEWAY_URL", "").strip()
+    logger.info(f"尝试调用 OpenClaw Gateway: {gateway_url}")
+    
+    if not gateway_url:
+        logger.warning("OPENCLAW_GATEWAY_URL 未设置，跳过 Gateway 调用")
+        yield f"data: [ERROR]Gateway URL 未配置\n\n"
+        return
     
     # 构建系统提示
     system_prompt = """你是 Suni AI 智能助手，一个基于企业知识库的AI助手。
@@ -228,50 +238,88 @@ async def call_openclaw_stream(message: str, context: str = ""):
     else:
         full_message = message
     
-    # 准备请求体
+    # OpenClaw Gateway API 格式（使用兼容 OpenAI 的格式）
+    # 尝试多个可能的端点
+    endpoints = [
+        f"{gateway_url}/v1/chat/completions",
+        f"{gateway_url}/chat/completions", 
+        f"{gateway_url}/v1/chat",
+        f"{gateway_url}/api/chat",
+    ]
+    
     payload = {
-        "message": full_message,
-        "system_prompt": system_prompt,
+        "model": "default",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": full_message}
+        ],
         "stream": True
     }
     
     headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {OPENCLAW_GATEWAY_TOKEN}" if OPENCLAW_GATEWAY_TOKEN else ""
+        "Content-Type": "application/json"
     }
     
-    try:
-        async with aiohttp.ClientSession() as session:
-            async with session.post(
-                f"{OPENCLAW_GATEWAY_URL}/v1/chat",
-                json=payload,
-                headers=headers,
-                timeout=aiohttp.ClientTimeout(total=300)
-            ) as response:
-                if response.status != 200:
-                    error_text = await response.text()
-                    yield f"data: [ERROR]{error_text}\n\n"
-                    return
-                
-                # 读取流式响应
-                async for line in response.content:
-                    line = line.decode('utf-8').strip()
-                    if line.startswith('data: '):
-                        data = line[6:]
-                        if data == '[DONE]':
-                            yield "data: [DONE]\n\n"
-                            break
-                        try:
-                            chunk = json.loads(data)
-                            if 'choices' in chunk and len(chunk['choices']) > 0:
-                                delta = chunk['choices'][0].get('delta', {})
-                                if 'content' in delta:
-                                    content = delta['content']
-                                    yield f"data: {json.dumps({'content': content})}\n\n"
-                        except json.JSONDecodeError:
-                            continue
-    except Exception as e:
-        yield f"data: [ERROR]{str(e)}\n\n"
+    if OPENCLAW_GATEWAY_TOKEN:
+        headers["Authorization"] = f"Bearer {OPENCLAW_GATEWAY_TOKEN}"
+    
+    last_error = None
+    for endpoint in endpoints:
+        try:
+            logger.info(f"尝试端点: {endpoint}")
+            async with aiohttp.ClientSession() as session:
+                async with session.post(
+                    endpoint,
+                    json=payload,
+                    headers=headers,
+                    timeout=aiohttp.ClientTimeout(total=30)
+                ) as response:
+                    logger.info(f"端点 {endpoint} 响应状态: {response.status}")
+                    
+                    if response.status == 200:
+                        # 读取流式响应
+                        chunk_count = 0
+                        async for line in response.content:
+                            chunk_count += 1
+                            try:
+                                line_text = line.decode('utf-8').strip()
+                                if line_text.startswith('data: '):
+                                    data = line_text[6:]
+                                    if data == '[DONE]':
+                                        yield "data: [DONE]\n\n"
+                                        break
+                                    try:
+                                        chunk_data = json.loads(data)
+                                        # OpenAI 格式
+                                        if 'choices' in chunk_data and len(chunk_data['choices']) > 0:
+                                            delta = chunk_data['choices'][0].get('delta', {})
+                                            if 'content' in delta:
+                                                content = delta['content']
+                                                yield f"data: {json.dumps({'content': content})}\n\n"
+                                    except json.JSONDecodeError:
+                                        continue
+                            except Exception as e:
+                                logger.error(f"处理数据块时出错: {e}")
+                                continue
+                        logger.info(f"Gateway 调用成功，共 {chunk_count} 个数据块")
+                        return
+                    else:
+                        error_text = await response.text()
+                        logger.warning(f"端点 {endpoint} 返回 {response.status}: {error_text[:200]}")
+                        last_error = f"{response.status}: {error_text[:200]}"
+                        
+        except aiohttp.ClientError as e:
+            logger.warning(f"端点 {endpoint} 连接失败: {e}")
+            last_error = str(e)
+            continue
+        except Exception as e:
+            logger.error(f"端点 {endpoint} 异常: {e}")
+            last_error = str(e)
+            continue
+    
+    # 所有端点都失败了
+    logger.error(f"所有 Gateway 端点都失败，最后错误: {last_error}")
+    yield f"data: [ERROR]无法连接到 OpenClaw Gateway: {last_error}\n\n"
 
 
 @app.post("/api/chat/stream")
@@ -318,57 +366,75 @@ async def chat_stream(
     
     # 流式生成器
     async def generate_stream():
+        import logging
+        logger = logging.getLogger(__name__)
+        
         try:
             # 尝试调用 OpenClaw Gateway
             gateway_url = os.getenv("OPENCLAW_GATEWAY_URL", "").strip()
             
             if gateway_url:
+                logger.info(f"使用 OpenClaw Gateway: {gateway_url}")
                 # 使用 OpenClaw Gateway
+                gateway_success = False
                 async for chunk in call_openclaw_stream(request.message, context):
+                    if chunk.startswith('data: [ERROR]'):
+                        # Gateway 调用失败，记录错误并回退到模拟输出
+                        logger.warning(f"Gateway 调用失败: {chunk}")
+                        break
+                    gateway_success = True
                     yield chunk
+                
+                if gateway_success:
+                    logger.info("Gateway 调用成功完成")
+                    return
+                
+                # Gateway 失败，回退到模拟输出
+                logger.info("回退到模拟输出")
+            
+            # 模拟流式输出（用于演示或Gateway未配置/失败时）
+            import asyncio
+            
+            if context:
+                response_text = f"根据您的知识库，我找到了以下相关信息来回答您的问题：\n\n"
+                response_text += f"关于 \"{request.message}\"，"
+                response_text += "基于知识库中的文档内容，"
+                response_text += "我可以为您提供以下解答：\n\n"
+                
+                # 模拟逐字输出
+                words = response_text.split(' ')
+                for word in words:
+                    yield f"data: {json.dumps({'content': word + ' '})}\n\n"
+                    await asyncio.sleep(0.05)
+                
+                # 输出知识库结果
+                results = rag_engine.retrieve_with_rerank(request.message)
+                if results:
+                    for i, r in enumerate(results[:3], 1):
+                        chunk_text = f"\n**参考{i}**: {r['content'][:300]}...\n"
+                        chunk_text += f"📁 来源: {r['metadata'].get('filename', '未知')}\n"
+                        for char in chunk_text:
+                            yield f"data: {json.dumps({'content': char})}\n\n"
+                            await asyncio.sleep(0.01)
+                
+                remaining = current_user.max_chats - current_user.chat_count
+                footer = f"\n\n---\n💡 剩余 {remaining} 次免费问答机会"
+                for char in footer:
+                    yield f"data: {json.dumps({'content': char})}\n\n"
+                    await asyncio.sleep(0.01)
             else:
-                # 模拟流式输出（用于演示或Gateway未配置时）
-                import asyncio
+                response_text = f"您好！我是 Suni AI 智能助手。\n\n"
+                response_text += f"您的问题是：{request.message}\n\n"
+                response_text += "💡 提示：上传企业文档后，我可以基于您的内部知识库为您提供更准确的回答。\n\n"
+                response_text += "当前未使用知识库增强，因为您还没有上传文档或选择不使用知识库。"
                 
-                if context:
-                    response_text = f"根据您的知识库，我找到了以下相关信息来回答您的问题：\n\n"
-                    response_text += f"关于 \"{request.message}\"，"
-                    response_text += "基于知识库中的文档内容，"
-                    response_text += "我可以为您提供以下解答：\n\n"
-                    
-                    # 模拟逐字输出
-                    words = response_text.split(' ')
-                    for word in words:
-                        yield f"data: {json.dumps({'content': word + ' '})}\n\n"
-                        await asyncio.sleep(0.05)
-                    
-                    # 输出知识库结果
-                    results = rag_engine.retrieve_with_rerank(request.message)
-                    if results:
-                        for i, r in enumerate(results[:3], 1):
-                            chunk_text = f"\n**参考{i}**: {r['content'][:300]}...\n"
-                            chunk_text += f"📁 来源: {r['metadata'].get('filename', '未知')}\n"
-                            for char in chunk_text:
-                                yield f"data: {json.dumps({'content': char})}\n\n"
-                                await asyncio.sleep(0.01)
-                    
-                    remaining = current_user.max_chats - current_user.chat_count
-                    footer = f"\n\n---\n💡 剩余 {remaining} 次免费问答机会"
-                    for char in footer:
-                        yield f"data: {json.dumps({'content': char})}\n\n"
-                        await asyncio.sleep(0.01)
-                else:
-                    response_text = f"您好！我是 Suni AI 智能助手。\n\n"
-                    response_text += f"您的问题是：{request.message}\n\n"
-                    response_text += "💡 提示：上传企业文档后，我可以基于您的内部知识库为您提供更准确的回答。\n\n"
-                    response_text += "当前未使用知识库增强，因为您还没有上传文档或选择不使用知识库。"
-                    
-                    for char in response_text:
-                        yield f"data: {json.dumps({'content': char})}\n\n"
-                        await asyncio.sleep(0.01)
-                
-                yield "data: [DONE]\n\n"
+                for char in response_text:
+                    yield f"data: {json.dumps({'content': char})}\n\n"
+                    await asyncio.sleep(0.01)
+            
+            yield "data: [DONE]\n\n"
         except Exception as e:
+            logger.error(f"生成流时出错: {e}")
             yield f"data: [ERROR]{str(e)}\n\n"
     
     return StreamingResponse(
