@@ -329,6 +329,7 @@
             currentMessageEl = addStreamingMessage();
             
             try {
+                console.log('发送请求到 /api/chat/stream');
                 // 使用 fetch 读取流式响应
                 const response = await fetch('/api/chat/stream', {
                     method: 'POST',
@@ -343,7 +344,10 @@
                     })
                 });
                 
+                console.log('响应状态:', response.status, response.statusText);
+                
                 if (!response.ok) {
+                    console.error('请求失败:', response.status, response.statusText);
                     if (response.status === 401) {
                         updateStreamingMessage('🔒 登录已过期，请重新登录');
                         setTimeout(() => {
@@ -351,8 +355,12 @@
                         }, 2000);
                         return;
                     }
+                    if (response.status === 404) {
+                        updateStreamingMessage('❌ 接口未找到 (404)，请检查后端服务是否已更新');
+                        return;
+                    }
                     const errorData = await response.json().catch(() => ({}));
-                    updateStreamingMessage(`❌ ${errorData.detail || '请求失败'}`);
+                    updateStreamingMessage(`❌ ${errorData.detail || '请求失败: ' + response.statusText}`);
                     return;
                 }
                 
