@@ -1,9 +1,11 @@
 """
 文档处理模块
-支持 txt, pdf, docx, xlsx 等格式
+支持 txt, pdf, docx, doc, xlsx 等格式
 """
 
 import os
+import subprocess
+import tempfile
 from typing import List, Optional
 from pathlib import Path
 
@@ -47,21 +49,22 @@ class DocumentProcessor:
     def load_document(self, file_path: Path) -> List[Document]:
         """加载单个文档"""
         suffix = file_path.suffix.lower()
-        
+
         loaders = {
             '.txt': self._load_txt,
             '.pdf': self._load_pdf,
             '.docx': self._load_docx,
+            '.doc': self._load_doc,
             '.xlsx': self._load_xlsx,
             '.xls': self._load_xlsx,
         }
-        
+
         loader = loaders.get(suffix)
         if not loader:
             raise ValueError(f"不支持的文件格式: {suffix}")
-        
+
         content = loader(file_path)
-        
+
         return [Document(
             page_content=content,
             metadata={
@@ -85,10 +88,64 @@ class DocumentProcessor:
         return "\n\n".join(text_parts)
     
     def _load_docx(self, file_path: Path) -> str:
-        """加载 Word 文档"""
+        """加载 Word 文档 (.docx)"""
         doc = DocxDocument(str(file_path))
         paragraphs = [p.text for p in doc.paragraphs if p.text.strip()]
         return "\n\n".join(paragraphs)
+
+    def _load_doc(self, file_path: Path) -> str:
+        """加载旧版 Word 文档 (.doc)"""
+        # 方法1: 尝试使用 antiword (Linux系统)
+        try:
+            result = subprocess.run(
+                ['antiword', str(file_path)],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
+            pass
+
+        # 方法2: 尝试使用 catdoc (某些系统)
+        try:
+            result = subprocess.run(
+                ['catdoc', str(file_path)],
+                capture_output=True,
+                text=True,
+                timeout=30
+            )
+            if result.returncode == 0:
+                return result.stdout
+        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
+            pass
+
+        # 方法3: 尝试使用 LibreOffice 转换为 docx 再读取
+        try:
+            with tempfile.TemporaryDirectory() as tmpdir:
+                # 使用 LibreOffice 转换
+                result = subprocess.run(
+                    ['libreoffice', '--headless', '--convert-to', 'docx',
+                     '--outdir', tmpdir, str(file_path)],
+                    capture_output=True,
+                    timeout=60
+                )
+                if result.returncode == 0:
+                    # 找到生成的 docx 文件
+                    docx_path = Path(tmpdir) / (file_path.stem + '.docx')
+                    if docx_path.exists():
+                        return self._load_docx(docx_path)
+        except (subprocess.TimeoutExpired, FileNotFoundError, subprocess.CalledProcessError):
+            pass
+
+        # 如果所有方法都失败
+        raise ValueError(
+            "无法读取 .doc 文件。请安装以下工具之一：\n"
+            "- antiword: apt-get install antiword\n"
+            "- catdoc: apt-get install catdoc\n"
+            "- LibreOffice: apt-get install libreoffice"
+        )
     
     def _load_xlsx(self, file_path: Path) -> str:
         """加载 Excel 文件"""

@@ -183,22 +183,34 @@ class RAGEngine:
             separators=["\n\n", "\n", "。", "！", "？", "；", "，", " ", ""]
         )
     
-    def index_documents(self, documents: List[Document]):
-        """索引文档（使用内容 hash 去重）"""
+    def index_documents(self, documents: List[Document]) -> int:
+        """索引文档（使用内容 hash 去重）- 返回实际索引的片段数量"""
         text_splitter = self._get_text_splitter()
         split_docs = text_splitter.split_documents(documents)
+        
+        if not split_docs:
+            return 0
         
         # 用内容 hash 作为 ID，重复内容不会重复存储
         ids = []
         for doc in split_docs:
             # 使用文件路径 + 内容生成 hash，保证唯一性
             source = doc.metadata.get('source', '')
-            content_hash = hashlib.md5(f"{source}:{doc.page_content}".encode()).hexdigest()
+            # 加入用户标识，确保不同用户的相同内容也能隔离
+            user_id = doc.metadata.get('user_id', '')
+            content_hash = hashlib.md5(f"{user_id}:{source}:{doc.page_content}".encode()).hexdigest()
             ids.append(content_hash)
+        
+        # 添加用户ID到 metadata，确保隔离
+        for doc in split_docs:
+            if 'user_id' not in doc.metadata:
+                doc.metadata['user_id'] = documents[0].metadata.get('user_id', 'unknown')
         
         print(f"正在索引 {len(split_docs)} 个文档片段...")
         self.vectorstore.add_documents(split_docs, ids=ids)
         print(f"索引完成！（重复内容已自动跳过）")
+        
+        return len(split_docs)
     
     def retrieve(self, query: str, top_k: Optional[int] = None) -> List[Document]:
         """检索相关文档"""
@@ -233,11 +245,15 @@ class RAGEngine:
         scored_docs = list(zip(docs, scores))
         scored_docs.sort(key=lambda x: x[1], reverse=True)
         
-        # 过滤低分结果
-        threshold = retrieval_config['similarity_threshold']
+        # bge-reranker-large 的 score 范围大约是 -10 到 10
+        # 我们不需要硬性 threshold，直接取 top_k 即可
+        # 但可以设置一个最低阈值防止完全不相关的内容
+        min_score = retrieval_config.get('similarity_threshold', -5)  # 默认 -5
+        
         results = []
         for doc, score in scored_docs[:rerank_top_k]:
-            if score >= threshold:
+            # 只过滤掉明显不相关的内容（score 很低）
+            if score >= min_score:
                 results.append({
                     'content': doc.page_content,
                     'metadata': doc.metadata,

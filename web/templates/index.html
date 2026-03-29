@@ -3,22 +3,965 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Suni AI - 企业知识智能体</title>
+    <title>Suni AI - 小企业AI赋能专家 | 知识库·智能体·团队助手</title>
+    <meta name="description" content="专注小企业AI数字化转型,提供知识库搭建、Agent定制、团队AI助手一站式解决方案">
     <link rel="stylesheet" href="/static/style.css">
+    <style>
+        /* 设计系统 - 科技感深色主题 */
+        :root {
+            --bg-dark: #0a0a0f;
+            --bg-card: rgba(20, 20, 30, 0.8);
+            --bg-card-hover: rgba(30, 30, 45, 0.9);
+            --primary: #6366f1;
+            --primary-light: #818cf8;
+            --primary-glow: rgba(99, 102, 241, 0.5);
+            --accent: #06b6d4;
+            --accent-glow: rgba(6, 182, 212, 0.5);
+            --success: #10b981;
+            --warning: #f59e0b;
+            --text: #f1f5f9;
+            --text-muted: #94a3b8;
+            --text-dim: #64748b;
+            --border: rgba(99, 102, 241, 0.2);
+            --border-light: rgba(99, 102, 241, 0.1);
+            --gradient-primary: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            --gradient-glow: linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(6, 182, 212, 0.3) 100%);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-dark);
+            color: var(--text);
+            overflow-x: hidden;
+        }
+
+        /* 动态背景 Canvas */
+        #bg-canvas {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: -1;
+        }
+
+        /* 导航栏 */
+        .navbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 100;
+            padding: 16px 0;
+            background: rgba(10, 10, 15, 0.8);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .navbar .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--text);
+        }
+
+        .logo-icon {
+            font-size: 28px;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); filter: brightness(1); }
+            50% { transform: scale(1.1); filter: brightness(1.3); }
+        }
+
+        .logo-text {
+            font-size: 24px;
+            font-weight: 700;
+            background: var(--gradient-primary);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-tagline {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-left: 8px;
+            padding-left: 8px;
+            border-left: 1px solid var(--border);
+        }
+
+        .nav-links {
+            display: flex;
+            align-items: center;
+            gap: 32px;
+        }
+
+        .nav-links a {
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 15px;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-links a:hover {
+            color: var(--text);
+        }
+
+        .nav-links a::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--gradient-primary);
+            transition: width 0.3s;
+        }
+
+        .nav-links a:hover::after {
+            width: 100%;
+        }
+
+        .btn {
+            padding: 10px 24px;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.3s;
+            cursor: pointer;
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 0 30px var(--primary-glow), 0 0 60px var(--accent-glow);
+        }
+
+        .btn-outline {
+            background: transparent;
+            border: 1px solid var(--border);
+            color: var(--text);
+        }
+
+        .btn-outline:hover {
+            border-color: var(--primary);
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        .btn-large {
+            padding: 14px 32px;
+            font-size: 16px;
+        }
+
+        /* Hero 区域 */
+        .hero {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            padding: 120px 0 80px;
+            position: relative;
+        }
+
+        .hero .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 60px;
+            align-items: center;
+        }
+
+        .hero-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            font-size: 14px;
+            color: var(--primary);
+            margin-bottom: 24px;
+        }
+
+        .hero-badge::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            background: var(--accent);
+            border-radius: 50%;
+            animation: blink 1.5s ease-in-out infinite;
+        }
+
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+
+        .hero h1 {
+            font-size: 56px;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 24px;
+        }
+
+        .hero h1 .gradient-text {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero-subtitle {
+            font-size: 20px;
+            color: var(--text-muted);
+            line-height: 1.6;
+            margin-bottom: 40px;
+        }
+
+        .hero-actions {
+            display: flex;
+            gap: 16px;
+        }
+
+        /* 特性标签 */
+        .hero-features {
+            display: flex;
+            gap: 24px;
+            margin-top: 48px;
+        }
+
+        .hero-feature {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            color: var(--text-muted);
+        }
+
+        .hero-feature-icon {
+            width: 20px;
+            height: 20px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        /* 视觉区域 */
+        .hero-visual {
+            position: relative;
+        }
+
+        .floating-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.1);
+        }
+
+        .floating-card.primary {
+            transform: rotate(-3deg);
+            animation: float 6s ease-in-out infinite;
+        }
+
+        .floating-card.secondary {
+            position: absolute;
+            bottom: -40px;
+            right: -20px;
+            width: 80%;
+            transform: rotate(3deg);
+            animation: float 6s ease-in-out infinite 0.5s;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(-3deg); }
+            50% { transform: translateY(-20px) rotate(-3deg); }
+        }
+
+        .code-block {
+            background: rgba(0, 0, 0, 0.5);
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'Consolas', monospace;
+            font-size: 13px;
+            color: var(--accent);
+            overflow-x: auto;
+        }
+
+        .code-block .comment {
+            color: var(--text-muted);
+        }
+
+        .code-block .keyword {
+            color: var(--primary);
+        }
+
+        /* 功能区域 */
+        .features {
+            padding: 120px 0;
+            position: relative;
+        }
+
+        .features::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80%;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, var(--border), transparent);
+        }
+
+        .features .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .section-header {
+            text-align: center;
+            margin-bottom: 80px;
+        }
+
+        .section-header h2 {
+            font-size: 42px;
+            font-weight: 700;
+            margin-bottom: 16px;
+        }
+
+        .section-header p {
+            font-size: 18px;
+            color: var(--text-muted);
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 24px;
+        }
+
+        .feature-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 32px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .feature-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            transform: scaleX(0);
+            transition: transform 0.3s;
+        }
+
+        .feature-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary);
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.2);
+        }
+
+        .feature-card:hover::before {
+            transform: scaleX(1);
+        }
+
+        .feature-icon {
+            width: 56px;
+            height: 56px;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(6, 182, 212, 0.2));
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            margin-bottom: 20px;
+            border: 1px solid var(--border);
+        }
+
+        .feature-card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+
+        .feature-card p {
+            font-size: 15px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* CTA 区域 */
+        .cta {
+            padding: 120px 0;
+            text-align: center;
+            position: relative;
+        }
+
+        .cta .container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 0 24px;
+        }
+
+        .cta h2 {
+            font-size: 48px;
+            font-weight: 700;
+            margin-bottom: 24px;
+        }
+
+        .cta p {
+            font-size: 20px;
+            color: var(--text-muted);
+            margin-bottom: 40px;
+        }
+
+        /* 页脚 */
+        .footer {
+            padding: 60px 0 30px;
+            border-top: 1px solid var(--border);
+        }
+
+        .footer .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            text-align: center;
+        }
+
+        .footer-brand {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            margin-bottom: 24px;
+        }
+
+        .footer-brand .logo-icon {
+            font-size: 24px;
+        }
+
+        .footer-brand .logo-text {
+            font-size: 20px;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .footer p {
+            color: var(--text-muted);
+            font-size: 14px;
+        }
+
+        /* 信任标识 */
+        .trust-bar {
+            padding: 40px 0;
+            border-top: 1px solid var(--border-light);
+            border-bottom: 1px solid var(--border-light);
+            background: rgba(20, 20, 30, 0.5);
+        }
+        .trust-bar .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 24px;
+            text-align: center;
+        }
+        .trust-label {
+            font-size: 14px;
+            color: var(--text-dim);
+            margin-bottom: 24px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+        .trust-logos {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 60px;
+            flex-wrap: wrap;
+        }
+        .trust-logo {
+            font-size: 18px;
+            color: var(--text-dim);
+            font-weight: 600;
+            opacity: 0.6;
+            transition: opacity 0.3s;
+        }
+        .trust-logo:hover { opacity: 1; }
+
+        /* 核心服务 */
+        .services {
+            padding: 120px 0;
+            position: relative;
+        }
+        .section-tag {
+            display: inline-block;
+            padding: 8px 20px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid var(--border);
+            border-radius: 50px;
+            font-size: 14px;
+            color: var(--primary-light);
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+        .services-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 28px;
+        }
+        .service-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px 32px;
+            transition: all 0.4s;
+            position: relative;
+            overflow: hidden;
+        }
+        .service-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: var(--gradient-primary);
+            transform: scaleX(0);
+            transition: transform 0.4s;
+        }
+        .service-card:hover {
+            transform: translateY(-8px);
+            border-color: var(--primary);
+            background: var(--bg-card-hover);
+            box-shadow: 0 20px 60px rgba(99, 102, 241, 0.2);
+        }
+        .service-card:hover::before { transform: scaleX(1); }
+        .service-icon {
+            width: 64px;
+            height: 64px;
+            background: var(--gradient-glow);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            margin-bottom: 24px;
+            border: 1px solid var(--border);
+            transition: all 0.3s;
+        }
+        .service-card:hover .service-icon {
+            transform: scale(1.1);
+            box-shadow: 0 0 30px var(--primary-glow);
+        }
+        .service-card h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .service-card > p {
+            font-size: 15px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+        .service-features {
+            list-style: none;
+            padding: 0;
+        }
+        .service-features li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 8px 0;
+            font-size: 14px;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--border-light);
+        }
+        .service-features li:last-child { border-bottom: none; }
+        .service-features li::before {
+            content: '✓';
+            width: 20px;
+            height: 20px;
+            background: rgba(16, 185, 129, 0.2);
+            color: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            flex-shrink: 0;
+        }
+
+        /* 解决方案 */
+        .solutions {
+            padding: 120px 0;
+            background: linear-gradient(180deg, transparent 0%, rgba(99, 102, 241, 0.03) 50%, transparent 100%);
+        }
+        .solutions-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 32px;
+        }
+        .solution-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 40px;
+            display: flex;
+            gap: 28px;
+            transition: all 0.3s;
+        }
+        .solution-card:hover {
+            border-color: var(--primary);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        }
+        .solution-icon {
+            width: 60px;
+            height: 60px;
+            background: var(--gradient-glow);
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            flex-shrink: 0;
+            border: 1px solid var(--border);
+        }
+        .solution-content h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .solution-content p {
+            font-size: 15px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+        .solution-tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+        .solution-tag {
+            padding: 6px 14px;
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid var(--border-light);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--primary-light);
+        }
+
+        /* 工作流程 */
+        .workflow {
+            padding: 120px 0;
+        }
+        .workflow-steps {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+            position: relative;
+        }
+        .workflow-steps::before {
+            content: '';
+            position: absolute;
+            top: 40px;
+            left: 12.5%;
+            right: 12.5%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            opacity: 0.3;
+        }
+        .workflow-step {
+            text-align: center;
+            position: relative;
+            z-index: 1;
+        }
+        .step-number {
+            width: 80px;
+            height: 80px;
+            background: var(--bg-card);
+            border: 2px solid var(--border);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: 700;
+            margin: 0 auto 24px;
+            color: var(--primary-light);
+            position: relative;
+            transition: all 0.3s;
+        }
+        .workflow-step:hover .step-number {
+            border-color: var(--primary);
+            box-shadow: 0 0 30px var(--primary-glow);
+            transform: scale(1.1);
+        }
+        .step-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 12px;
+        }
+        .step-desc {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.6;
+        }
+
+        /* 客户案例 */
+        .cases {
+            padding: 120px 0;
+            background: linear-gradient(180deg, rgba(99, 102, 241, 0.03) 0%, transparent 100%);
+        }
+        .cases-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 28px;
+        }
+        .case-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 32px;
+            transition: all 0.3s;
+        }
+        .case-card:hover {
+            transform: translateY(-4px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 50px rgba(99, 102, 241, 0.15);
+        }
+        .case-industry {
+            display: inline-block;
+            padding: 6px 14px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: 20px;
+            font-size: 12px;
+            color: var(--primary-light);
+            margin-bottom: 20px;
+        }
+        .case-card h3 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 16px;
+        }
+        .case-desc {
+            font-size: 15px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 24px;
+        }
+        .case-results {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-light);
+        }
+        .case-result {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 14px;
+        }
+        .case-result-icon {
+            width: 28px;
+            height: 28px;
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+        }
+
+        /* CTA */
+        .cta-buttons {
+            display: flex;
+            gap: 16px;
+            justify-content: center;
+            margin-bottom: 32px;
+        }
+        .cta-note {
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+
+        /* 页脚 */
+        .footer-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 60px;
+            margin-bottom: 60px;
+        }
+        .footer-brand {
+            max-width: 300px;
+        }
+        .footer-brand .logo {
+            margin-bottom: 20px;
+        }
+        .footer-brand p {
+            font-size: 14px;
+            color: var(--text-muted);
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+        .footer-social {
+            display: flex;
+            gap: 12px;
+        }
+        .social-link {
+            width: 40px;
+            height: 40px;
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            transition: all 0.3s;
+        }
+        .social-link:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.1);
+            transform: translateY(-2px);
+        }
+        .footer-section h4 {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .footer-section a {
+            display: block;
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+            transition: color 0.3s;
+        }
+        .footer-section a:hover { color: var(--primary-light); }
+        .footer-bottom {
+            padding-top: 40px;
+            border-top: 1px solid var(--border-light);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .footer-bottom p {
+            font-size: 14px;
+            color: var(--text-dim);
+        }
+        .footer-bottom-links {
+            display: flex;
+            gap: 24px;
+        }
+        .footer-bottom-links a {
+            font-size: 14px;
+            color: var(--text-dim);
+            transition: color 0.3s;
+        }
+        .footer-bottom-links a:hover { color: var(--text); }
+
+        /* 响应式 */
+        @media (max-width: 1024px) {
+            .hero .container {
+                grid-template-columns: 1fr;
+                text-align: center;
+            }
+            .hero h1 { font-size: 42px; }
+            .hero-actions { justify-content: center; }
+            .hero-stats { justify-content: center; }
+            .hero-visual { display: none; }
+            .services-grid { grid-template-columns: repeat(2, 1fr); }
+            .solutions-grid { grid-template-columns: 1fr; }
+            .workflow-steps { grid-template-columns: repeat(2, 1fr); }
+            .workflow-steps::before { display: none; }
+            .cases-grid { grid-template-columns: repeat(2, 1fr); }
+            .footer-grid { grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 768px) {
+            .nav-links a:not(.btn) { display: none; }
+            .hero h1 { font-size: 32px; }
+            .hero-subtitle { font-size: 17px; }
+            .hero-actions { flex-direction: column; }
+            .hero-stats { flex-direction: column; gap: 24px; }
+            .services-grid, .cases-grid { grid-template-columns: 1fr; }
+            .workflow-steps { grid-template-columns: 1fr; }
+            .cta h2 { font-size: 32px; }
+            .cta-buttons { flex-direction: column; }
+            .footer-grid { grid-template-columns: 1fr; }
+            .footer-bottom {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+        }
+    </style>
 </head>
 <body>
+    <!-- 动态背景 -->
+    <canvas id="bg-canvas"></canvas>
+
     <!-- 导航栏 -->
-    <nav class="navbar">
+    <nav class="navbar" id="navbar">
         <div class="container">
             <a href="/" class="logo">
                 <span class="logo-icon">🌟</span>
                 <span class="logo-text">Suni AI</span>
+                <span class="logo-tagline">小企业AI赋能专家</span>
             </a>
             <div class="nav-links">
-                <a href="#features">功能</a>
-                <a href="#about">关于</a>
-                <a href="/login" class="btn btn-outline">登录</a>
-                <a href="/register" class="btn btn-primary">免费试用</a>
+                <a href="#services">核心服务</a>
+                <a href="#solutions">解决方案</a>
+                <a href="/login" class="btn btn-outline btn-small">登录</a>
+                <a href="/register" class="btn btn-primary btn-small">免费体验</a>
             </div>
         </div>
     </nav>
@@ -27,177 +970,242 @@
     <section class="hero">
         <div class="container">
             <div class="hero-content">
-                <h1>企业 AI 智能助手<span class="highlight">全面升级</span>办公效率</h1>
-                <p class="subtitle">
-                    智能写代码、自动生成文档、PPT 制作、数据分析...
-                    一站式 AI 办公解决方案，让中小企业也能享受大模型能力
+                <div class="hero-badge">🎯 专注小企业AI数字化转型</div>
+                <h1>
+                    让每一家企业都拥有<br>
+                    <span class="gradient-text">专属AI智能助手</span>
+                </h1>
+                <p class="hero-subtitle">
+                    知识库搭建 · Agent · 团队AI助手<br>
+                    远程部署,可快速上线飞书、微信等平台,助力小企业降本增效
                 </p>
                 <div class="hero-actions">
-                    <a href="/register" class="btn btn-primary btn-large">
-                        免费试用 →
-                    </a>
-                    <a href="#features" class="btn btn-outline btn-large">
-                        了解更多
-                    </a>
+                    <a href="/register" class="btn btn-primary btn-large">免费体验 →</a>
+                    <a href="#services" class="btn btn-outline btn-large">了解服务</a>
+                </div>
+                <div class="hero-stats">
+                    <div class="hero-stat">
+                        <span class="hero-stat-value">50+</span>
+                        <span class="hero-stat-label">企业客户</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-value">10万+</span>
+                        <span class="hero-stat-label">文档索引</span>
+                    </div>
+                    <div class="hero-stat">
+                        <span class="hero-stat-value">99%</span>
+                        <span class="hero-stat-label">满意度</span>
+                    </div>
                 </div>
             </div>
             <div class="hero-visual">
-                <div class="chat-preview">
-                    <div class="chat-message user">
-                        <p>帮我写一个 Python 爬虫脚本</p>
+                <div class="floating-card primary">
+                    <div class="card-header">
+                        <div class="card-avatar">🤖</div>
+                        <div>
+                            <div class="card-title">Agent</div>
+                            <div class="card-subtitle">在线服务中</div>
+                        </div>
                     </div>
-                    <div class="chat-message assistant">
-                        <p>好的，这是一个简单的网页爬虫示例：</p>
-                        <pre style="background:#f5f5f5;padding:10px;border-radius:5px;font-size:12px;">import requests
-from bs4 import BeautifulSoup
+                    <div class="code-block">
+                        <span class="comment"># 智能客服自动回复</span><br>
+                        <span class="keyword">用户提问:</span> <span class="string">"退换货政策是什么?"</span><br>
+                        <span class="keyword">AI检索:</span> 知识库匹配...<br>
+                        <span class="keyword">智能回复:</span> 根据《售后服务手册》<br>
+                        &nbsp;&nbsp;7天无理由退换,15天质量问题包换...
+                    </div>
+                </div>
+                <div class="floating-card secondary">
+                    <div class="card-header">
+                        <div class="card-avatar" style="font-size:18px;">📚</div>
+                        <div>
+                            <div class="card-title">企业知识库</div>
+                            <div class="card-subtitle">实时同步</div>
+                        </div>
+                    </div>
+                    <div class="doc-list">
+                        <div class="doc-item">
+                            <span class="doc-icon">📄</span>
+                            <span class="doc-name">员工手册.pdf</span>
+                            <span class="doc-status">✓ 已索引</span>
+                        </div>
+                        <div class="doc-item">
+                            <span class="doc-icon">📊</span>
+                            <span class="doc-name">产品定价表.xlsx</span>
+                            <span class="doc-status">✓ 已索引</span>
+                        </div>
+                        <div class="doc-item">
+                            <span class="doc-icon">📝</span>
+                            <span class="doc-name">客服话术库.docx</span>
+                            <span class="doc-status">● 处理中</span>
+                        </div>
+                    </div>
+                    <div class="progress-bar">
+                        <div class="progress-fill"></div>
+                    </div>
+                </div>
 
-url = "https://example.com"
-response = requests.get(url)
-soup = BeautifulSoup(...)</pre>
-                        <p class="source">🤖 AI 智能生成代码</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- 核心服务 -->
+    <section id="services" class="services">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">三大核心服务</span>
+                <h2>为小企业量身定制的AI解决方案</h2>
+                <p>无需技术背景,无需 hiring AI 工程师,我们帮您快速搭建企业级AI能力</p>
+            </div>
+            <div class="services-grid">
+                <!-- 服务1:知识库搭建 -->
+                <div class="service-card">
+                    <div class="service-icon">📚</div>
+                    <h3>企业知识库搭建</h3>
+                    <p>将分散的企业文档转化为可智能检索的知识资产,让员工随时随地获取准确信息</p>
+                    <ul class="service-features">
+                        <li>支持 PDF/Word/TXT 等格式</li>
+                        <li>自动文档解析与向量化索引</li>
+                        <li>多层级权限管理与访问控制</li>
+                        <li>实时同步更新,版本自动管理</li>
+                    </ul>
+                </div>
+                <!-- 服务2:Agent -->
+                <div class="service-card">
+                    <div class="service-icon">🤖</div>
+                    <h3>Agent 定制</h3>
+                    <p>基于 OpenClaw 框架打造专属AI Agent,深度理解企业业务场景</p>
+                    <ul class="service-features">
+                        <li>配置AI助手、定制办公skill</li>
+                        <li>众多好用的专属skill自主安装</li>
+                        <li>支持多轮对话与复杂任务</li>
+                        <li>一键部署到微信/飞书(推荐)/网页,即刻启用</li>
+                    </ul>
+                </div>
+                <!-- 服务3:团队助手 -->
+                <div class="service-card">
+                    <div class="service-icon">👥</div>
+                    <h3>团队AI助手部署</h3>
+                    <p>为每个团队配备7×24小时在线的AI助手,提升协作效率与响应速度</p>
+                    <ul class="service-features">
+                        <li>智能客服自动回复常见问题</li>
+                        <li>内部IT/HR/财务咨询助手</li>
+                        <li>销售话术推荐与客户跟进</li>
+                        <li>会议纪要自动生成与待办提取</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 解决方案 -->
+    <section id="solutions" class="solutions">
+        <div class="container">
+            <div class="section-header">
+                <span class="section-tag">行业解决方案</span>
+                <h2>覆盖中小企业核心场景</h2>
+                <p>无论您是制造业、零售业还是服务业,我们都有适合您的AI解决方案</p>
+            </div>
+            <div class="solutions-grid">
+                <div class="solution-card">
+                    <div class="solution-icon">🏭</div>
+                    <div class="solution-content">
+                        <h3>制造业智能助手</h3>
+                        <p>设备操作手册智能查询、生产规范自动问答、质量检验标准快速检索,让一线工人随时获取操作指导</p>
+                        <div class="solution-tags">
+                            <span class="solution-tag">操作手册</span>
+                            <span class="solution-tag">质量规范</span>
+                            <span class="solution-tag">安全培训</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="solution-card">
+                    <div class="solution-icon">🛒</div>
+                    <div class="solution-content">
+                        <h3>零售电商客服</h3>
+                        <p>7×24小时智能客服、商品信息自动回复、退换货政策即时解答,大幅降低客服人力成本</p>
+                        <div class="solution-tags">
+                            <span class="solution-tag">智能客服</span>
+                            <span class="solution-tag">商品咨询</span>
+                            <span class="solution-tag">售后支持</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="solution-card">
+                    <div class="solution-icon">💼</div>
+                    <div class="solution-content">
+                        <h3>专业服务机构</h3>
+                        <p>律所、会计师事务所、咨询公司知识管理,案例库智能检索,提升专业服务效率</p>
+                        <div class="solution-tags">
+                            <span class="solution-tag">案例库</span>
+                            <span class="solution-tag">法规查询</span>
+                            <span class="solution-tag">文档生成</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="solution-card">
+                    <div class="solution-icon">🏢</div>
+                    <div class="solution-content">
+                        <h3>企业内部管理</h3>
+                        <p>员工手册智能问答、IT支持自动化、HR政策即时解答,提升内部服务效率</p>
+                        <div class="solution-tags">
+                            <span class="solution-tag">员工服务</span>
+                            <span class="solution-tag">IT支持</span>
+                            <span class="solution-tag">HR咨询</span>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 功能区域 -->
-    <section id="features" class="features">
+    <!-- 工作流程 -->
+    <section class="workflow">
         <div class="container">
-            <h2>核心功能</h2>
-            <div class="features-grid">
-                <div class="feature-card">
-                    <div class="feature-icon">💻</div>
-                    <h3>智能编程助手</h3>
-                    <p>支持 Python、Java、JavaScript 等多种语言。代码生成、Bug 修复、代码审查，提升研发效率 300%</p>
+            <div class="section-header">
+                <span class="section-tag">快速上线</span>
+                <h2>4步开启您的AI之旅</h2>
+                <p>无需技术背景,最快1小时即可上线使用</p>
+            </div>
+            <div class="workflow-steps">
+                <div class="workflow-step">
+                    <div class="step-number">1</div>
+                    <h4 class="step-title">需求沟通</h4>
+                    <p class="step-desc">了解您的业务场景与知识库现状,制定专属方案</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📝</div>
-                    <h3>文档智能生成</h3>
-                    <p>会议纪要、工作报告、产品说明、合同模板... 输入关键词，AI 自动生成专业文档</p>
+                <div class="workflow-step">
+                    <div class="step-number">2</div>
+                    <h4 class="step-title">知识导入</h4>
+                    <p class="step-desc">上传企业文档,系统自动解析并构建向量索引</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">📊</div>
-                    <h3>PPT & 数据分析</h3>
-                    <p>一键生成精美 PPT 大纲，自动分析 Excel 数据并生成可视化图表和洞察报告</p>
+                <div class="workflow-step">
+                    <div class="step-number">3</div>
+                    <h4 class="step-title">Agent配置</h4>
+                    <p class="step-desc">配置AI助手、定制办公skill</p>
                 </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🤖</div>
-                    <h3>企业知识问答</h3>
-                    <p>上传企业内部文档，AI 秒懂公司制度、流程规范，成为 7×24 小时在线的智能员工助手</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">🔒</div>
-                    <h3>数据安全隔离</h3>
-                    <p>企业数据独立存储，支持私有化部署，保障商业机密不外泄</p>
-                </div>
-                <div class="feature-card">
-                    <div class="feature-icon">⚡</div>
-                    <h3>全场景办公提效</h3>
-                    <p>邮件撰写、翻译润色、头脑风暴、客户沟通... 覆盖日常办公全场景</p>
+                <div class="workflow-step">
+                    <div class="step-number">4</div>
+                    <h4 class="step-title">上线使用</h4>
+                    <p class="step-desc">一键部署到微信/飞书(推荐)/网页,即刻启用</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- 使用场景 -->
-    <section class="scenarios">
-        <div class="container">
-            <h2>企业应用场景</h2>
-            <div class="scenarios-grid">
-                <div class="scenario-card">
-                    <div class="scenario-icon">👨‍💻</div>
-                    <h3>技术研发</h3>
-                    <ul>
-                        <li>快速生成代码片段和算法实现</li>
-                        <li>代码审查与优化建议</li>
-                        <li>技术文档自动撰写</li>
-                        <li>API 接口调试辅助</li>
-                    </ul>
-                </div>
-                <div class="scenario-card">
-                    <div class="scenario-icon">📈</div>
-                    <h3>市场营销</h3>
-                    <ul>
-                        <li>营销文案一键生成</li>
-                        <li>竞品分析报告撰写</li>
-                        <li>PPT 演示文稿制作</li>
-                        <li>客户邮件智能润色</li>
-                    </ul>
-                </div>
-                <div class="scenario-card">
-                    <div class="scenario-icon">👥</div>
-                    <h3>人力资源</h3>
-                    <ul>
-                        <li>招聘 JD 智能生成</li>
-                        <li>员工手册问答助手</li>
-                        <li>培训材料自动整理</li>
-                        <li>绩效考核报告撰写</li>
-                    </ul>
-                </div>
-                <div class="scenario-card">
-                    <div class="scenario-icon">💼</div>
-                    <h3>行政管理</h3>
-                    <ul>
-                        <li>公文、通知一键起草</li>
-                        <li>会议纪要智能整理</li>
-                        <li>规章制度快速查询</li>
-                        <li>合同模板智能生成</li>
-                    </ul>
-                </div>
-                <div class="scenario-card">
-                    <div class="scenario-icon">📊</div>
-                    <h3>财务分析</h3>
-                    <ul>
-                        <li>Excel 数据分析解读</li>
-                        <li>财务报表可视化</li>
-                        <li>预算报告自动撰写</li>
-                        <li>报销流程智能问答</li>
-                    </ul>
-                </div>
-                <div class="scenario-card">
-                    <div class="scenario-icon">🎧</div>
-                    <h3>客户服务</h3>
-                    <ul>
-                        <li>客服话术智能推荐</li>
-                        <li>常见问题自动应答</li>
-                        <li>客户邮件快速回复</li>
-                        <li>服务记录自动汇总</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
-    </section>
 
-    <!-- 关于 -->
-    <section id="about" class="about">
+
+    <!-- CTA 区域 -->
+    <section class="cta">
         <div class="container">
-            <h2>关于 Suni AI</h2>
-            <p class="about-desc">
-                Suni AI 专注于为中小企业提供智能化办公解决方案。我们相信，
-                先进的人工智能不应该只属于大公司，每一家企业都值得拥有专属的 AI 助手。
-            </p>
-            <div class="about-features">
-                <div class="about-item">
-                    <span class="about-icon">🎯</span>
-                    <h4>聚焦实用</h4>
-                    <p>不写代码、不写prompt，开箱即用的 AI 办公工具</p>
-                </div>
-                <div class="about-item">
-                    <span class="about-icon">💰</span>
-                    <h4>成本可控</h4>
-                    <p>按需付费，无隐藏成本，中小企业也能负担得起</p>
-                </div>
-                <div class="about-item">
-                    <span class="about-icon">🔐</span>
-                    <h4>安全合规</h4>
-                    <p>支持私有化部署，企业数据完全自主掌控</p>
-                </div>
-                <div class="about-item">
-                    <span class="about-icon">🚀</span>
-                    <h4>快速落地</h4>
-                    <p>定制化服务，一周内完成部署和培训</p>
-                </div>
+            <h2>准备好让AI为您的企业赋能了吗?</h2>
+            <p>立即注册免费体验,或预约专属顾问了解定制化方案</p>
+            <div class="cta-buttons">
+                <a href="/register" class="btn btn-primary btn-large">免费开始体验 →</a>
+                <button type="button" class="btn btn-outline btn-large" id="contact-btn" onclick="showContact()">预约顾问咨询</button>
+            </div>
+            <div id="contact-info" style="display: none; margin-top: 20px; padding: 16px 24px; background: rgba(99, 102, 241, 0.1); border: 1px solid var(--border); border-radius: 12px; font-size: 16px; color: var(--text);">
+                <span style="color: var(--text-muted);">📧 联系邮箱：</span>
+                <a href="mailto:suniairegister@gmail.com" style="color: #fff; text-decoration: none; font-weight: 600; text-shadow: 0 0 10px rgba(255,255,255,0.5);">suniairegister@gmail.com</a>
             </div>
         </div>
     </section>
@@ -205,30 +1213,156 @@ soup = BeautifulSoup(...)</pre>
     <!-- 页脚 -->
     <footer class="footer">
         <div class="container">
-            <div class="footer-content">
-                <div class="footer-brand">
-                    <span class="logo-icon">🌟</span>
-                    <span class="logo-text">Suni AI</span>
-                    <p>企业知识智能体平台</p>
-                </div>
-                <div class="footer-links">
-                    <div class="footer-section">
-                        <h4>产品</h4>
-                        <a href="#features">功能介绍</a>
-                        <a href="#about">关于我们</a>
-                    </div>
-                    <div class="footer-section">
-                        <h4>联系</h4>
-                        <a href="mailto:contact@suniai.com">contact@suniai.com</a>
-                    </div>
-                </div>
-            </div>
-            <div class="footer-bottom">
-                <p>&copy; 2024 Suni AI. All rights reserved.</p>
-            </div>
+            <p>© 2026 Suni AI. 专注小企业AI赋能 | 备案号:京ICP备XXXXXXXX号</p>
         </div>
     </footer>
 
-    <script src="/static/main.js"></script>
+    <!-- 导航栏滚动效果 -->
+    <script>
+        // 导航栏滚动效果
+        window.addEventListener('scroll', () => {
+            const navbar = document.getElementById('navbar');
+            if (window.scrollY > 50) {
+                navbar.classList.add('scrolled');
+            } else {
+                navbar.classList.remove('scrolled');
+            }
+        });
+
+        // 平滑滚动
+        document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+            anchor.addEventListener('click', function (e) {
+                e.preventDefault();
+                const target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                }
+            });
+        });
+    </script>
+
+    <!-- 动态背景脚本 -->
+    <script>
+        // Canvas 动态背景
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+
+        let width, height;
+        let particles = [];
+        let connections = [];
+
+        function resize() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', resize);
+        resize();
+
+        // 粒子类
+        class Particle {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = Math.random() * height;
+                this.vx = (Math.random() - 0.5) * 0.5;
+                this.vy = (Math.random() - 0.5) * 0.5;
+                this.radius = Math.random() * 2 + 1;
+                this.opacity = Math.random() * 0.5 + 0.2;
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+
+                if (this.x < 0 || this.x > width) this.vx *= -1;
+                if (this.y < 0 || this.y > height) this.vy *= -1;
+            }
+
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(99, 102, 241, ${this.opacity})`;
+                ctx.fill();
+            }
+        }
+
+        // 创建粒子
+        for (let i = 0; i < 80; i++) {
+            particles.push(new Particle());
+        }
+
+        // 动画循环
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+
+            // 绘制渐变背景
+            const gradient = ctx.createRadialGradient(
+                width / 2, height / 2, 0,
+                width / 2, height / 2, width
+            );
+            gradient.addColorStop(0, 'rgba(99, 102, 241, 0.03)');
+            gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.02)');
+            gradient.addColorStop(1, 'rgba(10, 10, 15, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, width, height);
+
+            // 更新和绘制粒子
+            particles.forEach(particle => {
+                particle.update();
+                particle.draw();
+            });
+
+            // 绘制连线
+            for (let i = 0; i < particles.length; i++) {
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const distance = Math.sqrt(dx * dx + dy * dy);
+
+                    if (distance < 150) {
+                        ctx.beginPath();
+                        ctx.moveTo(particles[i].x, particles[i].y);
+                        ctx.lineTo(particles[j].x, particles[j].y);
+                        ctx.strokeStyle = `rgba(99, 102, 241, ${0.15 * (1 - distance / 150)})`;
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+
+        // 鼠标交互
+        let mouseX = 0, mouseY = 0;
+        document.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+
+            particles.forEach(particle => {
+                const dx = mouseX - particle.x;
+                const dy = mouseY - particle.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < 200) {
+                    particle.vx += dx * 0.0001;
+                    particle.vy += dy * 0.0001;
+                }
+            });
+        });
+
+        // 显示联系邮箱
+        function showContact() {
+            const contactInfo = document.getElementById('contact-info');
+            if (contactInfo.style.display === 'none') {
+                contactInfo.style.display = 'block';
+                contactInfo.style.animation = 'fadeInUp 0.3s ease';
+            } else {
+                contactInfo.style.display = 'none';
+            }
+        }
+    </script>
 </body>
 </html>

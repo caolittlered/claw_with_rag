@@ -6,7 +6,32 @@
     <title>智能助手 - Suni AI</title>
     <link rel="stylesheet" href="/static/style.css">
     <style>
-        /* 流式输出时的光标动画 */
+        /* Thinking Spinner */
+        .thinking-spinner {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 16px;
+            color: var(--primary);
+        }
+        .spinner-dots {
+            display: inline-flex;
+            gap: 4px;
+        }
+        .spinner-dots span {
+            width: 8px;
+            height: 8px;
+            background: var(--primary);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .spinner-dots span:nth-child(1) { animation-delay: -0.32s; }
+        .spinner-dots span:nth-child(2) { animation-delay: -0.16s; }
+        .spinner-dots span:nth-child(3) { animation-delay: 0s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
         .streaming-cursor {
             display: inline-block;
             width: 8px;
@@ -16,87 +41,81 @@
             animation: blink 1s infinite;
             vertical-align: middle;
         }
-        
         @keyframes blink {
             0%, 50% { opacity: 1; }
             51%, 100% { opacity: 0; }
         }
-        
-        /* 消息内容样式优化 */
-        .message-content {
-            max-width: 70%;
-            padding: 16px 20px;
-            border-radius: var(--radius-lg);
-            background: var(--secondary);
-            word-wrap: break-word;
-            overflow-wrap: break-word;
+        .btn-stop {
+            background: #ef4444 !important;
+            border-color: #ef4444 !important;
         }
-        
-        .message-content pre {
-            background: #1e293b;
-            color: #e2e8f0;
-            padding: 12px;
-            border-radius: var(--radius);
-            overflow-x: auto;
-            margin: 8px 0;
+        .btn-stop:hover {
+            background: #dc2626 !important;
         }
-        
-        .message-content code {
-            background: rgba(99, 102, 241, 0.1);
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-family: 'Consolas', 'Monaco', monospace;
-            font-size: 14px;
-        }
-        
-        .message-content pre code {
+        /* Attachment styles */
+        .btn-attachment {
             background: transparent;
-            padding: 0;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 8px 12px;
+            color: var(--primary);
         }
-        
-        /* 代码块复制按钮 */
-        .code-block-wrapper {
-            position: relative;
+        .btn-attachment:hover {
+            background: rgba(99, 102, 241, 0.1);
+        }
+        .attachment-preview {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 10px;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: var(--radius);
+            margin-right: 8px;
+            font-size: 13px;
+            color: var(--primary);
+        }
+        .btn-remove-attachment {
+            background: transparent;
+            border: none;
+            color: #ef4444;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        .input-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .input-wrapper textarea {
+            flex: 1;
+        }
+        .example-questions {
+            list-style: none;
+            padding: 0;
             margin: 8px 0;
         }
-        
-        .copy-code-btn {
-            position: absolute;
-            top: 8px;
-            right: 8px;
-            padding: 4px 8px;
-            background: rgba(255,255,255,0.1);
-            border: none;
-            border-radius: 4px;
-            color: #94a3b8;
-            font-size: 12px;
+        .example-questions li {
+            padding: 8px 12px;
+            margin: 4px 0;
+            background: rgba(99, 102, 241, 0.1);
+            border-radius: var(--radius);
             cursor: pointer;
-            opacity: 0;
-            transition: opacity 0.2s;
         }
-        
-        .code-block-wrapper:hover .copy-code-btn {
-            opacity: 1;
-        }
-        
-        .copy-code-btn:hover {
-            background: rgba(255,255,255,0.2);
-            color: white;
+        .example-questions li:hover {
+            background: rgba(99, 102, 241, 0.2);
         }
     </style>
 </head>
 <body class="chat-page">
-    <!-- 检查登录状态 -->
     <script>
-        const token = localStorage.getItem('token');
+        var token = localStorage.getItem('token');
         if (!token) {
             window.location.href = '/login';
         }
-        console.log('Token loaded:', token ? 'OK' : 'None');
     </script>
 
     <div class="chat-layout">
-        <!-- 侧边栏 -->
         <aside class="chat-sidebar">
             <div class="sidebar-header">
                 <a href="/" class="logo">
@@ -105,518 +124,786 @@
                 </a>
             </div>
             
-            <!-- 知识库面板 -->
             <div class="knowledge-panel">
                 <div class="panel-header">
                     <h3>📚 企业知识库</h3>
                 </div>
-                
+                <div id="kb-status" class="kb-status empty" style="display:none;">
+                    💡 上传文档后，将自动启用知识库搜索能力
+                </div>
                 <div class="upload-section">
-                    <input type="file" id="file-upload" multiple accept=".txt,.pdf,.docx,.xlsx,.md" hidden>
-                    <button class="btn btn-outline btn-small" onclick="document.getElementById('file-upload').click()">
+                    <input type="file" id="file-upload" multiple accept=".txt,.pdf,.doc,.docx" hidden>
+                    <button class="btn btn-outline btn-small" onclick="document.getElementById('file-upload').click()" title="支持格式：txt, pdf, doc, docx；最大 2MB">
                         📤 上传文档
                     </button>
+                    <span id="upload-status" style="margin-left:10px;font-size:12px;color:#94a3b8;"></span>
                 </div>
-                
-                <div id="document-list" class="document-list">
-                    <!-- 文档列表将通过 JS 加载 -->
-                    <p class="empty-hint">暂无文档，点击上方按钮上传</p>
+                <div class="document-list-container">
+                    <div id="document-list" class="document-list">
+                        <p class="empty-hint">暂无文档</p>
+                    </div>
                 </div>
             </div>
             
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <span id="username">用户</span>
+            <!-- 报告面板 -->
+            <div class="report-panel">
+                <div class="panel-header">
+                    <h3>📊 我的报告</h3>
                 </div>
-                <div class="quota-info">
-                    <div class="quota-item">
-                        <span class="quota-label">💬 问答</span>
-                        <span id="chat-quota" class="quota-value">--/--</span>
-                    </div>
-                    <div class="quota-item">
-                        <span class="quota-label">📄 文档</span>
-                        <span id="doc-quota" class="quota-value">--/--</span>
-                    </div>
+                <div id="report-list">
+                    <p class="empty-hint" style="font-size: 12px; color: #94a3b8;">暂无报告</p>
                 </div>
-                <button class="btn btn-outline btn-small" onclick="logout()">退出登录</button>
+                <button class="btn btn-outline btn-small" onclick="loadReports()" style="margin-top: 8px; width: 100%;">
+                    🔄 刷新列表
+                </button>
             </div>
+            
+
         </aside>
 
-        <!-- 主聊天区 -->
         <main class="chat-main">
             <div class="chat-header">
-                <h2>Suni AI 智能助手</h2>
-                <p>编程 · 写作 · 数据分析 · 文档问答，一站式 AI 办公</p>
+                <div class="chat-header-right">
+                    <span id="username" class="header-username">用户</span>
+                    <span class="header-divider">|</span>
+                    <span class="header-quota" title="剩余次数">⚡ <span id="chat-quota">--</span></span>
+                    <button class="header-logout" onclick="logout()" title="退出登录">退出</button>
+                </div>
             </div>
             
             <div id="chat-messages" class="chat-messages">
-                <!-- 欢迎消息 -->
                 <div class="message assistant">
                     <div class="message-avatar">🤖</div>
                     <div class="message-content">
-                        <p>您好！我是 Suni AI 智能助手，您的全能办公搭档 💼</p>
-                        <p>我可以帮您：</p>
+                        <p>您好！我是 Suni AI 智能助手 💼</p>
+                        <p>您可以尝试：</p>
                         <ul class="example-questions">
-                            <li onclick="sendExample(this)">写一段 Python 爬虫代码</li>
-                            <li onclick="sendExample(this)">帮我写一份产品推广文案</li>
-                            <li onclick="sendExample(this)">生成一份季度工作总结 PPT 大纲</li>
-                            <li onclick="sendExample(this)">分析这份 Excel 数据并给出建议</li>
-                            <li onclick="sendExample(this)">起草一封客户合作邮件</li>
-                            <li onclick="sendExample(this)">公司的年假政策是什么？</li>
+                            <li onclick="sendExample(this)">💻 写一段 Python 爬虫代码</li>
+                            <li onclick="sendExample(this)">📝 帮我写一份产品推广文案</li>
+                            <li onclick="sendExample(this)">🔍 搜索企业知识库中的制度文档</li>
                         </ul>
-                        <p style="margin-top:10px;font-size:13px;color:#666;">
-                            💡 上传企业文档后，我还可以基于您的内部知识回答问题
-                        </p>
                     </div>
                 </div>
             </div>
             
             <div class="chat-input-area">
-                <div class="input-options">
-                    <label class="checkbox-label">
-                        <input type="checkbox" id="use-knowledge" checked>
-                        使用知识库增强
+                <div class="search-options" style="padding: 8px 12px; display: flex; gap: 16px; align-items: center; border-bottom: 1px solid rgba(255,255,255,0.1); flex-wrap: wrap;">
+                    <label class="search-option" style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: #94a3b8;">
+                        <input type="checkbox" id="web-search-toggle" style="cursor: pointer;">
+                        <span>🔍 网页搜索</span>
+                        <small style="color: #64748b;">（获取实时信息）</small>
+                    </label>
+                    <label class="search-option" style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: #94a3b8;">
+                        <input type="checkbox" id="knowledge-toggle" checked style="cursor: pointer;">
+                        <span>📚 知识库</span>
+                        <small style="color: #64748b;">（企业文档）</small>
+                    </label>
+                    <label class="search-option" style="display: flex; align-items: center; gap: 6px; cursor: pointer; font-size: 13px; color: #94a3b8;">
+                        <input type="checkbox" id="report-toggle" style="cursor: pointer;">
+                        <span>📊 报告生成</span>
+                        <small style="color: #64748b;">（生成可下载文档）</small>
                     </label>
                 </div>
                 <div class="input-wrapper">
-                    <textarea 
-                        id="message-input" 
-                        placeholder="输入您的问题..." 
-                        rows="1"
-                        onkeydown="handleKeydown(event)"
-                    ></textarea>
-                    <button class="btn btn-primary" onclick="sendMessage()" id="send-btn">发送</button>
+                    <input type="file" id="chat-attachment" accept=".jpg,.jpeg,.png,.gif,.webp,.txt,.pdf,.doc,.docx" hidden>
+                    <button class="btn btn-attachment" onclick="document.getElementById('chat-attachment').click()" title="添加附件（≤1MB）">
+                        📎
+                    </button>
+                    <div id="attachment-preview" class="attachment-preview" style="display:none;">
+                        <span id="attachment-name"></span>
+                        <button class="btn-remove-attachment" onclick="clearAttachment()">×</button>
+                    </div>
+                    <textarea id="message-input" placeholder="输入您的问题..." rows="1" onkeydown="handleKeydown(event)"></textarea>
+                    <button class="btn btn-primary" onclick="handleSendClick()" id="send-btn">发送</button>
                 </div>
             </div>
         </main>
     </div>
 
     <script>
-        // 用户信息
-        const user = JSON.parse(localStorage.getItem('user') || '{}');
+        // Config
+        var API_BASE = '';
+        var user = JSON.parse(localStorage.getItem('user') || '{}');
+        var isStreaming = false;
+        var currentMessageEl = null;
+        var currentReader = null;
+        var documents = [];
+        var kbReady = false;
+        var currentAttachment = null;
+
+        // Init
         document.getElementById('username').textContent = user.username || '用户';
-        
-        // 当前是否正在流式接收
-        let isStreaming = false;
-        let currentMessageEl = null;
-        
-        // 加载用户配额信息
-        async function loadUserQuota() {
-            try {
-                const response = await fetch('/api/me', {
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
-                const data = await response.json();
-                
-                if (response.ok) {
-                    document.getElementById('chat-quota').textContent = 
-                        `${data.remaining_chats}/${data.max_chats}`;
-                    document.getElementById('doc-quota').textContent = 
-                        `${data.remaining_docs}/${data.max_docs}`;
-                    
-                    // 如果问答次数用完，显示提示
-                    if (data.remaining_chats <= 0) {
-                        addSystemMessage(
-                            '⛔ 您的免费试用次数已用完。如需 unlimited 使用，请联系我们定制化部署。'
-                        );
-                    }
-                } else if (response.status === 401) {
-                    // Token 过期，跳转登录
+
+        // API helper
+        function apiGet(path) {
+            return fetch(API_BASE + path, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            }).then(function(r) {
+                if (r.status === 401) {
                     window.location.href = '/login';
+                    return null;
                 }
-            } catch (error) {
-                console.error('加载配额失败:', error);
-            }
+                return r;
+            });
         }
-        
-        // 加载文档列表
-        async function loadDocuments() {
-            try {
-                const response = await fetch('/api/knowledge/documents', {
-                    headers: { 'Authorization': `Bearer ${token}` }
+
+        // Load user quota
+        function loadUserQuota() {
+            apiGet('/api/me').then(function(r) {
+                if (!r) return;
+                r.json().then(function(data) {
+                    // 右上角显示剩余次数
+                    document.getElementById('chat-quota').textContent = data.remaining_chats;
+                    if (data.remaining_chats <= 0) {
+                        addSystemMessage('⛔ 您的免费试用次数已用完。如需 unlimited 使用，请联系我们：contact@suniai.com');
+                    }
                 });
-                
-                const data = await response.json();
-                const listEl = document.getElementById('document-list');
-                
-                if (data.documents && data.documents.length > 0) {
-                    listEl.innerHTML = data.documents.map(doc => `
-                        <div class="document-item ${doc.is_indexed ? 'indexed' : 'indexing'}">
-                            <span class="doc-icon">📄</span>
-                            <span class="doc-name">${doc.filename}</span>
-                            <span class="doc-status">${doc.is_indexed ? '✓' : '⏳'}</span>
-                            <button class="doc-delete" onclick="deleteDocument(${doc.id})">×</button>
-                        </div>
-                    `).join('');
-                } else {
-                    listEl.innerHTML = '<p class="empty-hint">暂无文档，点击上方按钮上传</p>';
-                }
-            } catch (error) {
-                console.error('加载文档失败:', error);
+            }).catch(function(e) {
+                console.error('加载配额失败:', e);
+            });
+        }
+
+        // Load documents
+        function loadDocuments() {
+            apiGet('/api/knowledge/documents').then(function(r) {
+                if (!r) return;
+                r.json().then(function(data) {
+                    documents = data.documents || [];
+                    kbReady = documents.some(function(d) { return d.is_indexed; });
+                    renderDocuments();
+                    updateKBStatus();
+                });
+            }).catch(function(e) {
+                console.error('加载文档失败:', e);
+            });
+        }
+
+        function renderDocuments() {
+            var listEl = document.getElementById('document-list');
+            if (documents.length === 0) {
+                listEl.innerHTML = '<p class="empty-hint">暂无文档</p>';
+                return;
+            }
+            listEl.innerHTML = documents.map(function(doc) {
+                var statusClass = doc.is_indexed ? 'ready' : 'indexing';
+                var statusText = doc.is_indexed ? '✓ 已就绪' : '⏳ 索引中';
+                return '<div class="document-item ' + (doc.is_indexed ? 'indexed' : 'indexing') + '">' +
+                    '<span class="doc-icon">📄</span>' +
+                    '<span class="doc-name" title="' + doc.filename + '">' + doc.filename + '</span>' +
+                    '<span class="doc-status ' + statusClass + '">' + statusText + '</span>' +
+                    '<button class="doc-delete" onclick="deleteDocument(\'' + encodeURIComponent(doc.filename) + '\')">×</button>' +
+                    '</div>';
+            }).join('');
+        }
+
+        function updateKBStatus() {
+            var statusEl = document.getElementById('kb-status');
+            if (kbReady) {
+                var indexedCount = documents.filter(function(d) { return d.is_indexed; }).length;
+                statusEl.className = 'kb-status ready';
+                statusEl.innerHTML = '✅ 知识库已就绪（' + indexedCount + ' 个文档），现在可以搜索企业知识了';
+            } else if (documents.length > 0) {
+                statusEl.className = 'kb-status';
+                statusEl.innerHTML = '⏳ 正在构建知识库索引，请稍候...（不影响其他问答）';
+            } else {
+                statusEl.className = 'kb-status empty';
+                statusEl.innerHTML = '💡 上传企业文档后，将自动启用知识库搜索能力';
             }
         }
-        
-        // 上传文档
-        document.getElementById('file-upload').addEventListener('change', async (e) => {
-            const files = e.target.files;
+
+        // Upload documents
+        document.getElementById('file-upload').addEventListener('change', function(e) {
+            var files = Array.from(e.target.files);
+            if (files.length === 0) return;
             
-            for (const file of files) {
-                const formData = new FormData();
+            var statusEl = document.getElementById('upload-status');
+            statusEl.textContent = '正在上传 ' + files.length + ' 个文档...';
+            
+            var successCount = 0;
+            var errorCount = 0;
+            var totalFiles = files.length;
+            
+            files.forEach(function(file) {
+                var formData = new FormData();
                 formData.append('file', file);
                 
-                try {
-                    const response = await fetch('/api/knowledge/upload', {
-                        method: 'POST',
-                        headers: { 'Authorization': `Bearer ${token}` },
-                        body: formData
-                    });
-                    
-                    const data = await response.json();
-                    
-                    if (response.ok) {
-                        addSystemMessage(`📄 "${file.name}" 上传成功，正在建立索引...`);
+                fetch(API_BASE + '/api/knowledge/upload', {
+                    method: 'POST',
+                    headers: { 'Authorization': 'Bearer ' + token },
+                    body: formData
+                }).then(function(r) {
+                    if (r.ok) {
+                        successCount++;
+                        // 添加一个临时的"索引中"文档到列表
+                        var tempDoc = {
+                            filename: file.name,
+                            is_indexed: false,
+                            file_size: file.size,
+                            file_type: file.name.split('.').pop()
+                        };
+                        documents.unshift(tempDoc);
+                        renderDocuments();
+                        addSystemMessage('📄 "' + file.name + '" 上传成功，正在后台建立索引（约需10-30秒）...');
                     } else {
-                        addSystemMessage(`❌ "${file.name}" 上传失败: ${data.detail}`);
+                        return r.json().then(function(data) {
+                            errorCount++;
+                            addSystemMessage('❌ "' + file.name + '" 上传失败: ' + (data.detail || '上传失败'));
+                        });
                     }
-                } catch (error) {
-                    addSystemMessage(`❌ 上传失败: ${error.message}`);
-                }
-            }
-            
-            // 清空文件选择
-            e.target.value = '';
-            
-            // 刷新文档列表
-            setTimeout(loadDocuments, 2000);
+                }).catch(function(error) {
+                    errorCount++;
+                    addSystemMessage('❌ "' + file.name + '" 上传失败: ' + error.message);
+                }).finally(function() {
+                    if (successCount + errorCount === totalFiles) {
+                        e.target.value = '';
+                        if (successCount > 0) {
+                            statusEl.textContent = '✓ 已上传 ' + successCount + '/' + totalFiles + ' 个文档，索引中...';
+                            loadUserQuota();
+                            // 立即刷新一次
+                            loadDocuments();
+                            // 然后每5秒检查一次，直到所有文档都索引完成
+                            startIndexPolling();
+                        } else {
+                            statusEl.textContent = '✗ 上传失败';
+                        }
+                    }
+                });
+            });
         });
         
-        // 删除文档
-        async function deleteDocument(docId) {
-            if (!confirm('确定删除此文档？')) return;
+        // 索引状态轮询
+        var indexPollTimer = null;
+        function startIndexPolling() {
+            if (indexPollTimer) clearInterval(indexPollTimer);
             
-            try {
-                await fetch(`/api/knowledge/documents/${docId}`, {
-                    method: 'DELETE',
-                    headers: { 'Authorization': `Bearer ${token}` }
-                });
+            var checkCount = 0;
+            indexPollTimer = setInterval(function() {
+                checkCount++;
+                // 最多检查12次（1分钟）
+                if (checkCount > 12) {
+                    clearInterval(indexPollTimer);
+                    indexPollTimer = null;
+                    document.getElementById('upload-status').textContent = '';
+                    return;
+                }
                 
                 loadDocuments();
-            } catch (error) {
-                alert('删除失败');
+                
+                // 检查是否所有文档都已索引
+                var allIndexed = documents.every(function(d) { return d.is_indexed; });
+                if (allIndexed && documents.length > 0) {
+                    clearInterval(indexPollTimer);
+                    indexPollTimer = null;
+                    document.getElementById('upload-status').textContent = '✓ 所有文档索引完成';
+                    addSystemMessage('✅ 知识库索引完成！现在可以搜索企业知识了。');
+                }
+            }, 5000);
+        }
+
+        // Delete document
+        function deleteDocument(filename) {
+            if (!confirm('确定删除此文档？')) return;
+            fetch(API_BASE + '/api/knowledge/documents/' + filename, {
+                method: 'DELETE',
+                headers: { 'Authorization': 'Bearer ' + token }
+            }).then(function(r) {
+                if (r.ok) {
+                    addSystemMessage('📄 文档已删除');
+                    loadDocuments();
+                    loadUserQuota();
+                } else {
+                    return r.json().then(function(data) {
+                        alert(data.detail || '删除失败');
+                    });
+                }
+            }).catch(function(error) {
+                alert('删除失败: ' + error.message);
+            });
+        }
+
+        // Chat attachment handling
+        document.getElementById('chat-attachment').addEventListener('change', function(e) {
+            var file = e.target.files[0];
+            if (!file) return;
+
+            // 1MB limit for chat attachments
+            if (file.size > 1 * 1024 * 1024) {
+                addSystemMessage('❌ 文件过大（' + (file.size/1024/1024).toFixed(1) + 'MB），最大支持 1MB');
+                e.target.value = '';
+                return;
+            }
+
+            var ext = file.name.split('.').pop().toLowerCase();
+            var allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'txt', 'pdf', 'doc', 'docx'];
+            if (allowed.indexOf(ext) === -1) {
+                addSystemMessage('❌ 不支持的文件类型: ' + ext + '。支持图片和文档(txt/pdf/doc/docx)');
+                e.target.value = '';
+                return;
+            }
+
+            currentAttachment = file;
+
+            var previewEl = document.getElementById('attachment-preview');
+            var nameEl = document.getElementById('attachment-name');
+            var imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            var icon = imageExts.indexOf(ext) !== -1 ? '🖼️' : '📄';
+
+            nameEl.textContent = icon + ' ' + file.name;
+            previewEl.style.display = 'inline-flex';
+        });
+
+        function clearAttachment() {
+            currentAttachment = null;
+            document.getElementById('chat-attachment').value = '';
+            document.getElementById('attachment-preview').style.display = 'none';
+        }
+
+        // Send/Stop button handler
+        function handleSendClick() {
+            if (isStreaming) {
+                stopStreaming();
+            } else {
+                sendMessage();
             }
         }
-        
-        // 发送消息（流式版本）
+
+        function stopStreaming() {
+            if (currentReader) {
+                currentReader.cancel();
+                currentReader = null;
+            }
+            isStreaming = false;
+            var sendBtn = document.getElementById('send-btn');
+            sendBtn.className = 'btn btn-primary';
+            sendBtn.textContent = '发送';
+            sendBtn.disabled = false;
+            if (currentMessageEl) {
+                var spinner = currentMessageEl.querySelector('.thinking-spinner');
+                if (spinner) {
+                    spinner.innerHTML = '<span style="color:#94a3b8">已停止</span>';
+                }
+            }
+            addSystemMessage('⏹️ 已停止回答');
+        }
+
         async function sendMessage() {
-            const input = document.getElementById('message-input');
-            const sendBtn = document.getElementById('send-btn');
-            const message = input.value.trim();
-            
-            if (!message || isStreaming) return;
-            
-            const useKnowledge = document.getElementById('use-knowledge').checked;
-            
-            // 添加用户消息
-            addMessage('user', message);
+            var input = document.getElementById('message-input');
+            var sendBtn = document.getElementById('send-btn');
+            var message = input.value.trim();
+            var attachmentFile = currentAttachment;
+
+            if (!message && !attachmentFile) return;
+            if (isStreaming) return;
+
+            // Check quota
+            var quotaEl = document.getElementById('chat-quota');
+            var quotaText = quotaEl.textContent;
+            if (quotaText && quotaText.indexOf('0/') === 0) {
+                addSystemMessage('⛔ 您的免费试用次数已用完。如需 unlimited 使用，请联系我们：contact@suniai.com');
+                return;
+            }
+
+            // Display user message
+            var displayMessage = message;
+            if (attachmentFile) {
+                var ext = attachmentFile.name.split('.').pop().toLowerCase();
+                var imageExts = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+                var icon = imageExts.indexOf(ext) !== -1 ? '🖼️' : '📄';
+                displayMessage = message ? icon + ' [' + attachmentFile.name + '] ' + message : icon + ' [' + attachmentFile.name + ']';
+            }
+            addMessage('user', displayMessage);
             input.value = '';
-            
-            // 禁用发送按钮
-            sendBtn.disabled = true;
-            sendBtn.textContent = '发送中...';
+            clearAttachment();
+
+            // Switch to stop button
+            sendBtn.className = 'btn btn-primary btn-stop';
+            sendBtn.textContent = '⏹ 停止';
+            sendBtn.disabled = false;
             isStreaming = true;
-            
-            // 创建AI消息容器
-            currentMessageEl = addStreamingMessage();
-            
+
+            // Create AI message container
+            currentMessageEl = addThinkingMessage();
+
             try {
-                console.log('发送请求到 /api/chat/stream');
-                // 使用 fetch 读取流式响应
-                const response = await fetch('/api/chat/stream', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${token}`,
-                        'Accept': 'text/event-stream'
-                    },
-                    body: JSON.stringify({
-                        message: message,
-                        use_knowledge: useKnowledge
-                    })
-                });
-                
-                console.log('响应状态:', response.status, response.statusText);
-                console.log('响应头:', [...response.headers.entries()]);
-                
+                var response;
+
+                if (attachmentFile) {
+                    // Send with attachment
+                    var formData = new FormData();
+                    formData.append('message', message);
+                    formData.append('file', attachmentFile);
+
+                    response = await fetch(API_BASE + '/api/chat/attachment/stream', {
+                        method: 'POST',
+                        headers: {
+                            'Authorization': 'Bearer ' + token,
+                            'Accept': 'text/event-stream'
+                        },
+                        body: formData
+                    });
+                } else {
+                    // Normal chat
+                    var useWebSearch = document.getElementById('web-search-toggle').checked;
+                    var useKnowledge = document.getElementById('knowledge-toggle').checked;
+                    var useReport = document.getElementById('report-toggle').checked;
+                    
+                    response = await fetch(API_BASE + '/api/chat/stream', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': 'Bearer ' + token,
+                            'Accept': 'text/event-stream'
+                        },
+                        body: JSON.stringify({
+                            message: message,
+                            use_knowledge: useKnowledge && kbReady,
+                            use_web_search: useWebSearch,
+                            use_report: useReport
+                        })
+                    });
+                }
+
                 if (!response.ok) {
-                    console.error('请求失败:', response.status, response.statusText);
                     if (response.status === 401) {
                         updateStreamingMessage('🔒 登录已过期，请重新登录');
-                        setTimeout(() => {
-                            window.location.href = '/login';
-                        }, 2000);
+                        setTimeout(function() { window.location.href = '/login'; }, 2000);
                         return;
                     }
-                    if (response.status === 404) {
-                        updateStreamingMessage('❌ 接口未找到 (404)，请检查后端服务是否已更新');
-                        return;
-                    }
-                    const errorText = await response.text().catch(() => '未知错误');
-                    console.error('错误响应:', errorText);
-                    updateStreamingMessage(`❌ 请求失败: ${response.status}`);
+                    var errorText = await response.text().catch(function() { return ''; });
+                    var errorMsg = '请求失败 (' + response.status + ')';
+                    try {
+                        var errData = JSON.parse(errorText);
+                        errorMsg = errData.detail || errorMsg;
+                    } catch(e) {}
+                    updateStreamingMessage('❌ ' + errorMsg);
                     return;
                 }
-                
-                // 检查是否是流式响应
-                const contentType = response.headers.get('content-type');
-                console.log('Content-Type:', contentType);
-                
-                if (!contentType || !contentType.includes('text/event-stream')) {
-                    console.warn('响应不是流式格式，尝试读取普通JSON');
-                    const data = await response.json();
-                    if (data.response) {
-                        updateStreamingMessage(data.response);
-                        finalizeStreamingMessage(data.response);
-                    }
-                    return;
-                }
-                
-                // 读取流式数据
-                console.log('开始读取流式数据...');
-                const reader = response.body.getReader();
-                const decoder = new TextDecoder();
-                let fullContent = '';
-                let chunkCount = 0;
-                
+
+                // Read stream
+                currentReader = response.body.getReader();
+                var decoder = new TextDecoder();
+                var fullContent = '';
+                var started = false;
+
                 while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) {
-                        console.log('流式读取完成，总块数:', chunkCount);
-                        break;
-                    }
-                    
-                    chunkCount++;
-                    const chunk = decoder.decode(value, { stream: true });
-                    console.log(`收到数据块 #${chunkCount}:`, chunk.substring(0, 100));
-                    
-                    const lines = chunk.split('\n');
-                    
-                    for (const line of lines) {
-                        if (line.startsWith('data: ')) {
-                            const data = line.slice(6);
-                            
+                    var readResult = await currentReader.read();
+                    if (readResult.done) break;
+
+                    var chunk = decoder.decode(readResult.value, { stream: true });
+                    var lines = chunk.split('\n');
+
+                    for (var i = 0; i < lines.length; i++) {
+                        var line = lines[i];
+                        if (line.indexOf('data: ') === 0) {
+                            var data = line.slice(6);
+
                             if (data === '[DONE]') {
-                                console.log('收到结束标记 [DONE]');
                                 finalizeStreamingMessage(fullContent);
-                            } else if (data.startsWith('[ERROR]')) {
-                                const errorMsg = data.slice(7);
-                                console.error('收到错误:', errorMsg);
-                                // 如果是 Gateway 错误，显示更友好的提示
-                                if (errorMsg.includes('Gateway') || errorMsg.includes('无法连接')) {
-                                    updateStreamingMessage('💡 正在使用本地模式回复...\n\n' + fullContent);
-                                } else {
-                                    updateStreamingMessage(`❌ ${errorMsg}`);
-                                }
                             } else {
                                 try {
-                                    const parsed = JSON.parse(data);
+                                    var parsed = JSON.parse(data);
                                     if (parsed.content) {
+                                        if (!started) {
+                                            started = true;
+                                            switchToStreamingMode();
+                                        }
                                         fullContent += parsed.content;
                                         updateStreamingMessage(fullContent, true);
                                     }
-                                    if (parsed.done) {
-                                        finalizeStreamingMessage(fullContent);
-                                    }
-                                } catch (e) {
-                                    console.warn('解析数据失败:', data, e);
-                                }
+                                } catch (e) {}
                             }
                         }
                     }
                 }
-                
-                console.log('流处理完成，总内容长度:', fullContent.length);
-                
+
             } catch (error) {
-                updateStreamingMessage(`❌ 请求失败: ${error.message}`);
+                console.error('请求失败:', error);
+                if (error.name === 'AbortError') return;
+                updateStreamingMessage('❌ 连接失败: ' + error.message);
             } finally {
                 isStreaming = false;
-                sendBtn.disabled = false;
+                currentReader = null;
+                sendBtn.className = 'btn btn-primary';
                 sendBtn.textContent = '发送';
+                sendBtn.disabled = false;
                 currentMessageEl = null;
-                
-                // 刷新配额
                 loadUserQuota();
+                
+                // 检查是否需要生成报告（方案1：前端检测关键词）
+                var useReport = document.getElementById('report-toggle').checked;
+                if (useReport && fullContent) {
+                    checkAndGenerateReport(message, fullContent);
+                }
             }
         }
-        
-        // 添加普通消息
+
+        // Message rendering
         function addMessage(role, content) {
-            const container = document.getElementById('chat-messages');
-            const id = 'msg-' + Date.now();
-            
-            const messageEl = document.createElement('div');
-            messageEl.className = `message ${role}`;
-            messageEl.id = id;
+            var container = document.getElementById('chat-messages');
+            var messageEl = document.createElement('div');
+            messageEl.className = 'message ' + role;
             
             if (role === 'user') {
-                messageEl.innerHTML = `
-                    <div class="message-content">
-                        <p>${escapeHtml(content)}</p>
-                    </div>
-                    <div class="message-avatar">👤</div>
-                `;
+                messageEl.innerHTML = '<div class="message-content"><p>' + escapeHtml(content) + '</p></div><div class="message-avatar">👤</div>';
             } else {
-                messageEl.innerHTML = `
-                    <div class="message-avatar">🤖</div>
-                    <div class="message-content">
-                        <p>${formatResponse(content)}</p>
-                    </div>
-                `;
+                messageEl.innerHTML = '<div class="message-avatar">🤖</div><div class="message-content"><p>' + formatResponse(content) + '</p></div>';
             }
             
             container.appendChild(messageEl);
             scrollToBottom();
-            
-            return id;
-        }
-        
-        // 添加流式消息（带光标）
-        function addStreamingMessage() {
-            const container = document.getElementById('chat-messages');
-            const id = 'msg-stream-' + Date.now();
-            
-            const messageEl = document.createElement('div');
-            messageEl.className = 'message assistant';
-            messageEl.id = id;
-            messageEl.innerHTML = `
-                <div class="message-avatar">🤖</div>
-                <div class="message-content">
-                    <p><span class="streaming-content"></span><span class="streaming-cursor"></span></p>
-                </div>
-            `;
-            
-            container.appendChild(messageEl);
-            scrollToBottom();
-            
             return messageEl;
         }
-        
-        // 更新流式消息内容
-        function updateStreamingMessage(content, isStreaming = false) {
+
+        function addThinkingMessage() {
+            var container = document.getElementById('chat-messages');
+            var messageEl = document.createElement('div');
+            messageEl.className = 'message assistant';
+            messageEl.innerHTML = '<div class="message-avatar">🤖</div><div class="message-content"><div class="thinking-spinner"><div class="spinner-dots"><span></span><span></span><span></span></div><span class="thinking-text">思考中...</span></div></div>';
+            container.appendChild(messageEl);
+            scrollToBottom();
+            return messageEl;
+        }
+
+        function switchToStreamingMode() {
             if (!currentMessageEl) return;
-            
-            const contentSpan = currentMessageEl.querySelector('.streaming-content');
-            const cursor = currentMessageEl.querySelector('.streaming-cursor');
-            
-            if (contentSpan) {
-                contentSpan.innerHTML = formatResponse(content);
+            var contentEl = currentMessageEl.querySelector('.message-content');
+            if (contentEl) {
+                contentEl.innerHTML = '<p><span class="streaming-content"></span><span class="streaming-cursor"></span></p>';
             }
-            
-            // 如果是完成状态，移除光标
-            if (!isStreaming && cursor) {
-                cursor.remove();
-            }
-            
+        }
+
+        function updateStreamingMessage(content, streaming) {
+            if (!currentMessageEl) return;
+            var contentSpan = currentMessageEl.querySelector('.streaming-content');
+            var cursor = currentMessageEl.querySelector('.streaming-cursor');
+            if (contentSpan) contentSpan.innerHTML = formatResponse(content);
+            if (!streaming && cursor) cursor.remove();
             scrollToBottom();
         }
-        
-        // 完成流式消息
+
         function finalizeStreamingMessage(content) {
             if (!currentMessageEl) return;
-            
-            const contentEl = currentMessageEl.querySelector('.message-content');
-            if (contentEl) {
-                contentEl.innerHTML = `<p>${formatResponse(content)}</p>`;
-            }
-            
+            var contentEl = currentMessageEl.querySelector('.message-content');
+            if (contentEl) contentEl.innerHTML = '<p>' + formatResponse(content) + '</p>';
             scrollToBottom();
         }
-        
-        // 添加系统消息
+
         function addSystemMessage(content) {
-            const container = document.getElementById('chat-messages');
-            const messageEl = document.createElement('div');
+            var container = document.getElementById('chat-messages');
+            var messageEl = document.createElement('div');
             messageEl.className = 'message system';
-            messageEl.innerHTML = `<div class="system-notice">${content}</div>`;
+            messageEl.innerHTML = '<div class="system-notice">' + content + '</div>';
             container.appendChild(messageEl);
             scrollToBottom();
         }
-        
-        // 滚动到底部
+
         function scrollToBottom() {
-            const container = document.getElementById('chat-messages');
+            var container = document.getElementById('chat-messages');
             container.scrollTop = container.scrollHeight;
         }
-        
-        // 示例问题点击
+
+        // Utils
         function sendExample(el) {
-            document.getElementById('message-input').value = el.textContent;
+            var text = el.textContent.replace(/^[^\s]+\s/, '');
+            document.getElementById('message-input').value = text;
             sendMessage();
         }
-        
-        // 键盘事件
+
         function handleKeydown(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
-                sendMessage();
+                handleSendClick();
             }
         }
-        
-        // HTML 转义
+
         function escapeHtml(text) {
-            const div = document.createElement('div');
+            var div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
         }
-        
-        // 格式化响应（支持 Markdown）
+
         function formatResponse(text) {
             if (!text) return '';
-            
-            let formatted = escapeHtml(text);
-            
-            // 代码块 (```code```)
-            formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
-                return `<div class="code-block-wrapper">
-                    <button class="copy-code-btn" onclick="copyCode(this)">复制</button>
-                    <pre><code class="language-${lang || ''}">${code.trim()}</code></pre>
-                </div>`;
+            var formatted = escapeHtml(text);
+            formatted = formatted.replace(/```(\w+)?\n([\s\S]*?)```/g, function(match, lang, code) {
+                return '<pre><code>' + code.trim() + '</code></pre>';
             });
-            
-            // 行内代码 (`code`)
             formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
-            
-            // 粗体 (**text**)
             formatted = formatted.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
-            
-            // 斜体 (*text*)
-            formatted = formatted.replace(/\*(.+?)\*/g, '<em>$1</em>');
-            
-            // 换行
             formatted = formatted.replace(/\n/g, '<br>');
-            
             return formatted;
         }
-        
-        // 复制代码
-        function copyCode(btn) {
-            const code = btn.nextElementSibling.querySelector('code').textContent;
-            navigator.clipboard.writeText(code).then(() => {
-                btn.textContent = '已复制!';
-                setTimeout(() => btn.textContent = '复制', 2000);
-            });
-        }
-        
-        // 登出
+
         function logout() {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login';
         }
+
+        // ==================== 报告功能 ====================
         
-        // 初始化
+        // 检测是否需要生成文档（基于关键词）
+        function checkAndGenerateReport(query, response) {
+            // 文档相关关键词
+            var docKeywords = ['报告', '文档', '总结', '分析', '调研', '研究', '会议纪要', '会议记录', '周报', '月报', '方案', '计划书', '说明书'];
+            var generateKeywords = ['生成', '写', '制作', '创建', '导出', '下载'];
+
+            // 检查是否包含文档关键词 + 生成关键词
+            var hasDocKeyword = docKeywords.some(function(kw) {
+                return query.indexOf(kw) !== -1;
+            });
+            var hasGenerateKeyword = generateKeywords.some(function(kw) {
+                return query.indexOf(kw) !== -1;
+            });
+
+            // 如果用户明确要求生成文档
+            if (hasDocKeyword && hasGenerateKeyword) {
+                console.log('[Document] 检测到文档生成请求，正在生成...');
+                generateReportFromResponse(query, response);
+            }
+        }
+        
+        // 从响应生成报告
+        async function generateReportFromResponse(query, response) {
+            try {
+                // 提取标题（使用查询的前20个字符）
+                var title = query.length > 20 ? query.substring(0, 20) + '...' : query;
+                
+                // 清理响应内容（移除HTML标签）
+                var cleanContent = response.replace(/<br\s*\/?>/gi, '\n')
+                                           .replace(/<[^>]+>/g, '');
+                
+                // 调用报告生成API
+                var reportResponse = await fetch(API_BASE + '/api/report/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: cleanContent,
+                        format: 'md',
+                        sources: []
+                    })
+                });
+                
+                if (reportResponse.ok) {
+                    var data = await reportResponse.json();
+                    addSystemMessage('📊 报告已生成: <a href="#" onclick="downloadReport(\'' + data.filename + '\'); return false;" style="color: #6366f1;">' + data.filename + '</a>（请在左侧"我的报告"中查看）');
+                    loadReports(); // 刷新报告列表
+                } else {
+                    console.error('[Report] 生成报告失败:', await reportResponse.text());
+                }
+            } catch (e) {
+                console.error('[Report] 生成报告出错:', e);
+            }
+        }
+        
+        // 加载报告列表
+        async function loadReports() {
+            try {
+                const response = await apiGet('/api/report/list');
+                if (!response) return;
+                
+                const data = await response.json();
+                const listEl = document.getElementById('report-list');
+                
+                if (data.reports.length === 0) {
+                    listEl.innerHTML = '<p class="empty-hint" style="font-size: 12px; color: #94a3b8;">暂无报告</p>';
+                    return;
+                }
+                
+                listEl.innerHTML = data.reports.map(function(r) {
+                    const size = r.size < 1024 ? r.size + 'B' : (r.size/1024).toFixed(1) + 'KB';
+                    const date = new Date(r.created).toLocaleDateString();
+                    return `
+                        <div class="report-item" style="padding: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; margin-bottom: 6px; font-size: 12px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 120px;" title="${r.filename}">${r.filename}</span>
+                                <span style="color: #94a3b8; font-size: 11px;">${size}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 4px;">
+                                <span style="color: #64748b; font-size: 10px;">${date}</span>
+                                <a href="#" onclick="downloadReport('${r.filename}'); return false;" style="color: #6366f1; font-size: 11px; text-decoration: none;">下载</a>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } catch (e) {
+                console.error('加载报告失败:', e);
+            }
+        }
+        
+        // 下载报告（带认证）
+        async function downloadReport(filename) {
+            try {
+                const response = await fetch(API_BASE + '/api/report/download/' + encodeURIComponent(filename), {
+                    headers: {
+                        'Authorization': 'Bearer ' + token
+                    }
+                });
+                
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        alert('登录已过期，请重新登录');
+                        window.location.href = '/login';
+                        return;
+                    }
+                    throw new Error('下载失败: ' + response.status);
+                }
+                
+                // 获取文件内容并创建下载
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                window.URL.revokeObjectURL(url);
+                document.body.removeChild(a);
+            } catch (e) {
+                console.error('下载报告失败:', e);
+                alert('下载失败: ' + e.message);
+            }
+        }
+        
+        // 生成报告
+        async function generateReport(title, content, sources, format) {
+            try {
+                const response = await fetch(`${API_BASE}/api/report/generate`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${token}`
+                    },
+                    body: JSON.stringify({
+                        title: title,
+                        content: content,
+                        format: format || 'html',
+                        sources: sources || []
+                    })
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    addSystemMessage(`📊 报告已生成: <a href="${API_BASE}${data.download_url}" target="_blank" style="color: #6366f1;">${data.filename}</a>`);
+                    loadReports(); // 刷新报告列表
+                    return data;
+                } else {
+                    addSystemMessage('❌ 报告生成失败');
+                }
+            } catch (e) {
+                console.error('生成报告失败:', e);
+                addSystemMessage('❌ 报告生成失败: ' + e.message);
+            }
+        }
+
+        // Startup
         loadUserQuota();
         loadDocuments();
+        loadReports();
     </script>
 </body>
 </html>

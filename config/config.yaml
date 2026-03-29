@@ -1,20 +1,21 @@
 # 项目配置文件
+# ⚠️ 注意：上传 GitHub 前请确保已替换所有敏感信息！
 
 # OpenClaw 相关配置
 openclaw:
   model:
-    provider: "aliyun"  # aliyun | deepseek | openai
-    model_id: "glm-5"   # 模型ID
+    provider: "kimi"    # aliyun | deepseek | openai | kimi
+    model_id: "kimi-k2.5"  # 模型ID
   feishu:
-    app_id: ""          # 飞书应用ID
-    app_secret: ""      # 飞书应用密钥
+    app_id: ""          # 飞书应用ID（请填写）
+    app_secret: ""      # 飞书应用密钥（请填写）
   gateway:
     url: "ws://127.0.0.1:18789"
     token: ""           # Gateway 认证 token（如需要）
 
 # JWT 配置（用户认证）
 jwt:
-  secret: "change-me-in-production-use-random-string"
+  secret: ""            # JWT 密钥（请填写，建议用 openssl rand -hex 32 生成）
   algorithm: "HS256"
   expire_hours: 24
 
@@ -43,7 +44,8 @@ rag:
   retrieval:
     top_k: 10                    # 初始召回数量
     rerank_top_k: 5              # 重排后返回数量
-    similarity_threshold: 0.5    # 相似度阈值
+    # bge-reranker-large 的 score 范围大约是 -10 到 10，设置较低的阈值即可
+    similarity_threshold: -5     # 最小分数阈值（过滤完全不相关内容）
   
   # 文档切分配置
   chunking:
@@ -95,3 +97,44 @@ server:
   host: "0.0.0.0"
   port: 3000
   debug: true
+
+# 邮箱验证配置
+email:
+  # 方案1: Gmail (需要服务器能访问国外网络)
+  # smtp_host: "smtp.gmail.com"
+  # smtp_port: 587
+  # smtp_user: "your-email@gmail.com"
+  # smtp_password: "your-app-password"  # 不是登录密码！是应用专用密码
+
+  # 方案2: QQ邮箱 (推荐国内服务器使用)
+  # smtp_host: "smtp.qq.com"
+  # smtp_port: 587
+  # smtp_user: "your-qq@qq.com"
+  # smtp_password: "your-auth-code"  # QQ邮箱授权码
+
+  # 方案3: 163邮箱
+  # smtp_host: "smtp.163.com"
+  # smtp_port: 587
+  # smtp_user: "your-email@163.com"
+  # smtp_password: "your-auth-code"  # 163邮箱授权码
+
+  # 当前配置 (请填写你的邮箱配置)
+  smtp_host: "smtp.163.com"
+  smtp_port: 465
+  smtp_user: ""       # 邮箱地址（请填写）
+  smtp_password: ""   # 邮箱授权码（请填写）
+
+  from_name: "Suni AI"
+  from_email: ""      # 发件人邮箱（请填写）
+  use_tls: false  # 使用STARTTLS
+
+  # 开发测试模式 (设为 true 时只打印验证码到日志，不真正发送邮件)
+  debug_mode: false
+
+# 验证码配置
+verification:
+  code_length: 6                   # 验证码长度
+  code_expire_minutes: 10          # 验证码有效期（分钟）
+  send_interval_seconds: 60        # 发送间隔（秒，防刷）
+  max_daily_per_email: 5           # 每个邮箱每天最大发送次数
+  max_daily_per_ip: 10             # 每个IP每天最大发送次数

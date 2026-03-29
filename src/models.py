@@ -1,5 +1,5 @@
 """
-数据库模型 - 用户系统
+数据库模型 - 用户系统（支持 OpenClaw Session 隔离）
 """
 
 from datetime import datetime
@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import declarative_base, sessionmaker
 import yaml
 import os
+import uuid
 
 # 加载配置
 CONFIG_PATH = os.getenv("RAG_CONFIG", "./config/config.yaml")
@@ -26,7 +27,7 @@ Base = declarative_base()
 
 
 class User(Base):
-    """用户表"""
+    """用户表（支持 OpenClaw Session 隔离）"""
     __tablename__ = "users"
     
     id = Column(Integer, primary_key=True, index=True)
@@ -36,6 +37,9 @@ class User(Base):
     
     # 用户信息
     company = Column(String(255), nullable=True)
+    
+    # OpenClaw Session 隔离
+    session_key = Column(String(100), unique=True, index=True, nullable=False)  # OpenClaw session key
     
     # 状态
     is_active = Column(Boolean, default=True)
@@ -49,6 +53,21 @@ class User(Base):
     # 时间戳
     created_at = Column(DateTime, default=datetime.utcnow)
     last_login = Column(DateTime, nullable=True)
+    
+    @staticmethod
+    def generate_session_key(user_id: int) -> str:
+        """生成用户的 OpenClaw session key"""
+        return f"suni_user_{user_id}_{uuid.uuid4().hex[:8]}"
+    
+    def get_workspace_path(self) -> str:
+        """获取用户的 workspace 路径（使用用户名标识，避免暴露ID）"""
+        base_path = config.get('knowledge', {}).get('upload_dir', './data/user_docs')
+        # 使用用户名而非ID，更清晰且不暴露系统内部ID
+        return os.path.join(base_path, f"{self.username}_{self.id}")
+    
+    def get_collection_name(self) -> str:
+        """获取用户的 ChromaDB collection 名称"""
+        return f"user_{self.id}_kb"
 
 
 class UserKnowledge(Base):
